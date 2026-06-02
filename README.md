@@ -267,3 +267,26 @@ Stores execution logs and workflow monitoring data.
 ## Project Goal
 
 To create a scalable AI-driven commerce platform capable of managing customer interactions, orders, payments, and shipment workflows through intelligent automation while maintaining a seamless customer experience.
+
+
+## Telegram Commerce Manager
+
+The platform is powered by the Telegram bot **@dropshipping2026_bot**, which serves as the primary customer-facing interface for order management, product discovery, and AI-powered customer support.
+
+### Bot Features
+
+* Product browsing and recommendations
+* AI-powered customer assistance
+* Order creation and management
+* Shipment tracking
+* Coupon validation
+* Payment support
+* Customer profile management
+* Conversation memory
+* 24/7 automated support
+
+### Access the Bot
+
+👉 https://t.me/dropshipping2026_bot
+
+The Telegram bot is fully integrated with the n8n automation workflow, MongoDB memory layer, AI Agents, and Groq LLM, enabling intelligent customer interactions and automated e-commerce operations.
