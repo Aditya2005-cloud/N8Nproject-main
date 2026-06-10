@@ -1,0 +1,33 @@
+tilowo3647@4nly.com
+tilowo
+Aditya@2005
+
+bot
+@dropshipping2026_bot
+8767067416:AAFXnR-VnmuR7oHgOyybNR7rNS19i1qdQlk
+
+api key for google gemini
+AQ.Ab8RN6KkEGiFl5DU_v4RGMrSwdMmeSsLq8h3NXP2wbYZh2gDkw
+
+console.groq.com/keys
+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
+
+Local mysql
+3306 root root
+sqln8n_dropshipping
+
+
+Drop all tables automatically:
+
+SET FOREIGN_KEY_CHECKS = 0;
+SET GROUP_CONCAT_MAX_LEN = 32768;
+SELECT GROUP_CONCAT(
+    CONCAT('`', table_name, '`')
+) INTO @tables
+FROM information_schema.tables
+WHERE table_schema = DATABASE();
+SET @sql = CONCAT('DROP TABLE IF EXISTS ', @tables);
+PREPARE stmt FROM @sql;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+SET FOREIGN_KEY_CHECKS = 1;
