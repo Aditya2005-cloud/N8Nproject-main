@@ -1,0 +1,3879 @@
+{
+  "name": "20 - Quality Control Agent",
+  "nodes": [
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{$json[\"title\"]}}",
+              "operation": "isNotEmpty"
+            },
+            {
+              "value1": "={{$json[\"price\"]}}",
+              "operation": "isNotEmpty"
+            }
+          ]
+        }
+      },
+      "name": "IF Valid Product",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        -1120,
+        0
+      ],
+      "id": "5cd2b15c-de63-4e1a-9694-2d005e20559b"
+    },
+    {
+      "parameters": {
+        "model": "llama3-70b-8192",
+        "options": {}
+      },
+      "name": "Groq - Enrich Product",
+      "type": "@n8n/n8n-nodes-langchain.lmChatGroq",
+      "typeVersion": 1,
+      "position": [
+        -880,
+        112
+      ],
+      "id": "20fc9159-948a-4887-8038-c3a08fdbc964"
+    },
+    {
+      "parameters": {
+        "jsCode": "const raw = $input.first().json;\nlet parsed;\ntry {\n  const text = raw.choices?.[0]?.message?.content || raw.content || raw.text || '{}';\n  parsed = JSON.parse(text.replace(/```json|```/g, '').trim());\n} catch(e) {\n  parsed = { error: 'Parse failed', raw: raw };\n}\nreturn [{ json: { ...parsed, product_id: $('MongoDB Trigger').first().json._id, processed_at: new Date().toISOString() } }];"
+      },
+      "name": "Parse AI Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -640,
+        -80
+      ],
+      "id": "6eb4b77c-9637-4252-9674-d260d333d750"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{$json[\"duplicate_check\"]}}"
+            }
+          ]
+        }
+      },
+      "name": "IF Not Duplicate",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        -400,
+        -80
+      ],
+      "id": "017137f8-ae06-4e75-8a8a-ed6694a2cddf"
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "collection": "products",
+        "options": {}
+      },
+      "name": "MongoDB - Update Product",
+      "type": "n8n-nodes-base.mongoDb",
+      "typeVersion": 1,
+      "position": [
+        -160,
+        -160
+      ],
+      "id": "6ec54c2a-e38e-4b45-b4c6-de48d8bb4ef3"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{$env.N8N_BASE_URL}}/webhook/quality-control",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "product_id",
+              "value": "={{$json['product_id']}}"
+            },
+            {
+              "name": "source",
+              "value": "product_manager"
+            },
+            {
+              "name": "data",
+              "value": "={{JSON.stringify($json)}}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "name": "Notify Quality Control",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        112,
+        -224
+      ],
+      "id": "d1c880b8-1458-40e2-a635-1c81f1a652c0"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{$env.N8N_BASE_URL}}/webhook/content-writer",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "product_id",
+              "value": "={{$json['product_id']}}"
+            },
+            {
+              "name": "content_type",
+              "value": "product_description"
+            },
+            {
+              "name": "product_data",
+              "value": "={{JSON.stringify($json)}}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "name": "Notify Content Writer",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        112,
+        -96
+      ],
+      "id": "b6b9ebe7-7a27-4d6c-93ed-c265d3059c1c"
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "collection": "products",
+        "options": {}
+      },
+      "name": "Flag as Duplicate",
+      "type": "n8n-nodes-base.mongoDb",
+      "typeVersion": 1,
+      "position": [
+        -160,
+        48
+      ],
+      "id": "48f47659-5273-4b85-b782-57a41c051864"
+    },
+    {
+      "parameters": {
+        "chatId": "={{$env.TELEGRAM_ADMIN_CHAT_ID}}",
+        "text": "=⚠️ Duplicate product detected!\nProduct ID: {{$json['product_id']}}\nTitle: {{$json['title']}}\nPlease review manually.",
+        "additionalFields": {}
+      },
+      "name": "Telegram - Alert Duplicate",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1,
+      "position": [
+        112,
+        48
+      ],
+      "id": "ee7e6c14-1c8b-433f-9a1a-226ce2c16d7f",
+      "webhookId": "5bc1dd9e-e452-4c53-b1fd-e21d965bac7c"
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "collection": "products",
+        "options": {}
+      },
+      "name": "Mark Invalid",
+      "type": "n8n-nodes-base.mongoDb",
+      "typeVersion": 1,
+      "position": [
+        -880,
+        304
+      ],
+      "id": "8a8a2485-a29d-4618-908b-a0227cd7e033"
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 30
+            }
+          ]
+        }
+      },
+      "name": "Schedule Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1,
+      "position": [
+        -1600,
+        512
+      ],
+      "id": "ae43a081-3a25-46db-a6e7-f4fec7341740"
+    },
+    {
+      "parameters": {
+        "collection": "inventory",
+        "options": {}
+      },
+      "name": "MongoDB - Read Inventory",
+      "type": "n8n-nodes-base.mongoDb",
+      "typeVersion": 1,
+      "position": [
+        -1360,
+        512
+      ],
+      "id": "cae00029-6ae6-46e5-b296-55b3166dcb45"
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nconst lowStock = [];\nconst outOfStock = [];\nconst healthy = [];\n\nfor (const item of items) {\n  const d = item.json;\n  if (d.quantity === 0) outOfStock.push(d);\n  else if (d.quantity <= (d.low_stock_threshold || 5)) lowStock.push(d);\n  else healthy.push(d);\n}\n\nreturn [{ json: { lowStock, outOfStock, healthy, checked_at: new Date().toISOString() } }];"
+      },
+      "name": "Classify Stock Levels",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1120,
+        512
+      ],
+      "id": "5121a289-c3c2-4e6e-ab81-812c732c2ee4"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "number": [
+            {
+              "value1": "={{$json['outOfStock'].length + $json['lowStock'].length}}",
+              "operation": "largerEqual",
+              "value2": 1
+            }
+          ]
+        }
+      },
+      "name": "IF Issues Found",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        -880,
+        512
+      ],
+      "id": "e0d6804a-cc91-4153-9759-ace7e6be35f9"
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "collection": "inventory",
+        "options": {}
+      },
+      "name": "Mark Out of Stock",
+      "type": "n8n-nodes-base.mongoDb",
+      "typeVersion": 1,
+      "position": [
+        -640,
+        432
+      ],
+      "id": "187471ee-7a04-481a-90f1-93d8b6d77683"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{$env.N8N_BASE_URL}}/webhook/pricing-agent",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "action",
+              "value": "review_low_stock"
+            },
+            {
+              "name": "products",
+              "value": "={{JSON.stringify($json['lowStock'])}}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "name": "Notify Pricing Agent",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        -640,
+        512
+      ],
+      "id": "9628a421-449b-4b33-9b91-167006fac645"
+    },
+    {
+      "parameters": {
+        "chatId": "={{$env.TELEGRAM_ADMIN_CHAT_ID}}",
+        "text": "=📦 Inventory Alert!\n\n🔴 Out of Stock: {{$json['outOfStock'].length}} items\n⚠️ Low Stock: {{$json['lowStock'].length}} items\n\nOut of stock: {{$json['outOfStock'].map(p=>p.name).join(', ')}}\nLow stock: {{$json['lowStock'].map(p=>p.name+' ('+p.quantity+' left)').join(', ')}}",
+        "additionalFields": {}
+      },
+      "name": "Telegram - Stock Alert",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1,
+      "position": [
+        -640,
+        592
+      ],
+      "id": "def08e73-f6f8-4ca0-8c49-1f475f3128cd",
+      "webhookId": "804f49e6-2692-44b0-96db-65541ac839d8"
+    },
+    {
+      "parameters": {
+        "operation": "insert",
+        "collection": "agent_logs",
+        "options": {}
+      },
+      "name": "Log Healthy Check",
+      "type": "n8n-nodes-base.mongoDb",
+      "typeVersion": 1,
+      "position": [
+        -640,
+        688
+      ],
+      "id": "1a31d467-45da-474b-8b3a-e089a34dceef"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "pricing-agent",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        -1600,
+        912
+      ],
+      "id": "931f56ee-4dd3-44ed-a817-a6b24076de0a",
+      "webhookId": "81d600a4-ce34-4e7f-8ec6-b82fa7131afb"
+    },
+    {
+      "parameters": {
+        "collection": "products",
+        "options": {
+          "limit": 1
+        },
+        "query": "={{ {\"_id\": $json.body.product_id} } }}"
+      },
+      "name": "MongoDB - Get Product",
+      "type": "n8n-nodes-base.mongoDb",
+      "typeVersion": 1,
+      "position": [
+        -1360,
+        912
+      ],
+      "id": "786e71fb-0cca-415d-9578-065f90678766"
+    },
+    {
+      "parameters": {
+        "jsCode": "const p = $input.first().json;\nconst cost = parseFloat(p.cost_price || 0);\nconst shipping = parseFloat(p.shipping_cost || 0);\nconst marketing = parseFloat(p.marketing_cost || cost * 0.1);\nconst marginPct = parseFloat(p.target_margin_pct || 30);\n\nconst basePrice = cost + shipping + marketing;\nconst sellingPrice = basePrice / (1 - marginPct / 100);\nconst discountedPrice = sellingPrice * 0.9;\n\nreturn [{\n  json: {\n    product_id: p._id,\n    product_name: p.title,\n    cost_price: cost,\n    shipping_cost: shipping,\n    marketing_cost: marketing,\n    selling_price: Math.round(sellingPrice * 100) / 100,\n    discounted_price: Math.round(discountedPrice * 100) / 100,\n    profit_margin_pct: marginPct,\n    profit_amount: Math.round((sellingPrice - basePrice) * 100) / 100,\n    calculated_at: new Date().toISOString()\n  }\n}];"
+      },
+      "name": "Calculate Price Formula",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1120,
+        912
+      ],
+      "id": "1dc4c109-53d9-4e6d-989c-715f0231f585"
+    },
+    {
+      "parameters": {
+        "model": "llama3-70b-8192",
+        "options": {}
+      },
+      "name": "Groq - Price Strategy",
+      "type": "@n8n/n8n-nodes-langchain.lmChatGroq",
+      "typeVersion": 1,
+      "position": [
+        -880,
+        1088
+      ],
+      "id": "ef599979-1421-4f02-8aa0-7816ee682b73"
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "collection": "products",
+        "options": {}
+      },
+      "name": "MongoDB - Update Price",
+      "type": "n8n-nodes-base.mongoDb",
+      "typeVersion": 1,
+      "position": [
+        -640,
+        912
+      ],
+      "id": "a5eaa1ba-e981-4d1e-bdd2-31f0a22c9f56"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{$env.N8N_BASE_URL}}/webhook/quality-control",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "product_id",
+              "value": "={{$('Calculate Price Formula').first().json.product_id}}"
+            },
+            {
+              "name": "source",
+              "value": "pricing_agent"
+            },
+            {
+              "name": "check_type",
+              "value": "pricing_review"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "name": "Notify QC",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        -400,
+        912
+      ],
+      "id": "5f44f04a-31c3-4edb-8647-d3ccbc199fc7"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\"status\": \"success\", \"product_id\": \"{{$('Calculate Price Formula').first().json.product_id}}\", \"new_price\": {{$('Calculate Price Formula').first().json.selling_price}}}",
+        "options": {}
+      },
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        -160,
+        912
+      ],
+      "id": "f22b907f-d580-4da3-81e7-239a9b87aadb"
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours",
+              "hoursInterval": 24
+            }
+          ]
+        }
+      },
+      "name": "Daily Schedule",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1,
+      "position": [
+        -1600,
+        1312
+      ],
+      "id": "dc95114e-fa73-4dc4-b603-a8794966ed9c"
+    },
+    {
+      "parameters": {
+        "url": "https://trends.google.com/trends/api/dailytrends",
+        "options": {}
+      },
+      "name": "Google Trends API",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        -1360,
+        1248
+      ],
+      "id": "278a02f2-5656-4f84-bee7-2f3192f0626c"
+    },
+    {
+      "parameters": {
+        "collection": "products",
+        "options": {
+          "limit": 20
+        },
+        "query": "{\"status\": \"active\"}"
+      },
+      "name": "Get Active Products",
+      "type": "n8n-nodes-base.mongoDb",
+      "typeVersion": 1,
+      "position": [
+        -1360,
+        1360
+      ],
+      "id": "ca6a85bd-2716-4e62-a90d-81c228a87d04"
+    },
+    {
+      "parameters": {
+        "model": "llama3-70b-8192",
+        "options": {}
+      },
+      "name": "Groq - Market Analysis",
+      "type": "@n8n/n8n-nodes-langchain.lmChatGroq",
+      "typeVersion": 1,
+      "position": [
+        -880,
+        1488
+      ],
+      "id": "857637de-beed-4865-890c-30cce56c2c7a"
+    },
+    {
+      "parameters": {
+        "operation": "insert",
+        "collection": "market_research",
+        "options": {}
+      },
+      "name": "Save Research Report",
+      "type": "n8n-nodes-base.mongoDb",
+      "typeVersion": 1,
+      "position": [
+        -640,
+        1312
+      ],
+      "id": "9c789bf2-039d-4c03-8723-23f9f47017fc"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{$env.N8N_BASE_URL}}/webhook/content-writer",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "source",
+              "value": "market_research"
+            },
+            {
+              "name": "content_type",
+              "value": "trend_blog"
+            },
+            {
+              "name": "data",
+              "value": "={{$json.insertedId}}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "name": "Trigger Content Writer",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        -400,
+        1312
+      ],
+      "id": "d42aa54b-fbc3-46e7-9fdd-8de4e0781763"
+    },
+    {
+      "parameters": {
+        "chatId": "={{$env.TELEGRAM_ADMIN_CHAT_ID}}",
+        "text": "=📊 Daily Market Research Complete!\nReport saved to MongoDB.\nCheck dashboard for trending products & opportunities.",
+        "additionalFields": {}
+      },
+      "name": "Telegram - Research Done",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1,
+      "position": [
+        -160,
+        1312
+      ],
+      "id": "15b09b2f-335d-4caa-bbef-dfbb692f1351",
+      "webhookId": "8510a049-a3b4-4e1b-bc87-09546a09fc2a"
+    },
+    {
+      "parameters": {
+        "dataType": "string",
+        "value1": "={{ $json.body.content_type }}"
+      },
+      "name": "Switch Content Type",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 2,
+      "position": [
+        -1360,
+        1712
+      ],
+      "id": "1871c045-fdc3-4978-9a35-789ea9bd31de"
+    },
+    {
+      "parameters": {
+        "model": "llama3-70b-8192",
+        "options": {}
+      },
+      "name": "Groq - Product Description",
+      "type": "@n8n/n8n-nodes-langchain.lmChatGroq",
+      "typeVersion": 1,
+      "position": [
+        -1120,
+        1632
+      ],
+      "id": "96504ac2-ce26-455c-bc40-5d28af394806"
+    },
+    {
+      "parameters": {
+        "model": "llama3-70b-8192",
+        "options": {}
+      },
+      "name": "Groq - Blog Post",
+      "type": "@n8n/n8n-nodes-langchain.lmChatGroq",
+      "typeVersion": 1,
+      "position": [
+        -1120,
+        1808
+      ],
+      "id": "47ab26b8-2d16-4ddd-af1b-326da75c031d"
+    },
+    {
+      "parameters": {
+        "model": "llama3-70b-8192",
+        "options": {}
+      },
+      "name": "Groq - Email Copy",
+      "type": "@n8n/n8n-nodes-langchain.lmChatGroq",
+      "typeVersion": 1,
+      "position": [
+        -1120,
+        1984
+      ],
+      "id": "6911dd4b-3e8b-4421-8be3-c9a5ee277d89"
+    },
+    {
+      "parameters": {
+        "model": "llama3-70b-8192",
+        "options": {}
+      },
+      "name": "Groq - FAQ",
+      "type": "@n8n/n8n-nodes-langchain.lmChatGroq",
+      "typeVersion": 1,
+      "position": [
+        -1120,
+        2160
+      ],
+      "id": "c410d7b1-4a6d-4dae-84a1-23f5136834fb"
+    },
+    {
+      "parameters": {
+        "operation": "insert",
+        "collection": "content_queue",
+        "options": {}
+      },
+      "name": "Save to Content Queue",
+      "type": "n8n-nodes-base.mongoDb",
+      "typeVersion": 1,
+      "position": [
+        -880,
+        1712
+      ],
+      "id": "7c80d764-9c87-4221-b997-9e011b3ba7e7"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{$env.N8N_BASE_URL}}/webhook/translation-agent",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "content_id",
+              "value": "={{$json.insertedId}}"
+            },
+            {
+              "name": "source_language",
+              "value": "en"
+            },
+            {
+              "name": "target_languages",
+              "value": "[\"hi\",\"bn\",\"es\",\"fr\",\"ar\"]"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "name": "Send to Translation",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        -640,
+        1712
+      ],
+      "id": "aafe7543-2d11-4bda-87df-1eef99217a2f"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\"status\": \"success\", \"content_id\": \"{{$('Save to Content Queue').first().json.insertedId}}\"}",
+        "options": {}
+      },
+      "name": "Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        -400,
+        1712
+      ],
+      "id": "e1b400a6-d5f1-4be2-9096-e1520fb95ba1"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "content-writer",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "name": "Webhook Trigger1",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        -1600,
+        1712
+      ],
+      "id": "92534d75-f350-49e9-b691-957698679c08",
+      "webhookId": "1e15fcdc-c7df-4e75-a080-f19850c153bf"
+    },
+    {
+      "parameters": {
+        "collection": "content_queue",
+        "options": {
+          "limit": 1
+        },
+        "query": "={{ {\"_id\": $json.body.content_id} } }}"
+      },
+      "name": "Get Content",
+      "type": "n8n-nodes-base.mongoDb",
+      "typeVersion": 1,
+      "position": [
+        -1360,
+        2400
+      ],
+      "id": "a85719e9-f47d-4d85-9d86-622210f5d4f3"
+    },
+    {
+      "parameters": {
+        "jsCode": "const content = $input.first().json;\nconst langs = JSON.parse($('Webhook Trigger2').first().json.body.target_languages || '[\"hi\",\"bn\",\"es\",\"fr\",\"ar\",\"de\",\"pt\"]');\nconst langNames = { hi: 'Hindi', bn: 'Bengali', es: 'Spanish', fr: 'French', ar: 'Arabic', de: 'German', pt: 'Portuguese' };\nreturn langs.map(lang => ({ json: { lang, lang_name: langNames[lang] || lang, content_id: content._id, source_text: content.content } }));"
+      },
+      "name": "Split by Language",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1120,
+        2400
+      ],
+      "id": "0420ba56-1d46-4133-b55b-e4bb58e1e256"
+    },
+    {
+      "parameters": {
+        "model": "llama3-70b-8192",
+        "options": {}
+      },
+      "name": "Groq - Translate",
+      "type": "@n8n/n8n-nodes-langchain.lmChatGroq",
+      "typeVersion": 1,
+      "position": [
+        -880,
+        2592
+      ],
+      "id": "8e8ed4c7-5be0-4b37-9fd8-4a7cc5ded60b"
+    },
+    {
+      "parameters": {
+        "operation": "insert",
+        "collection": "translations",
+        "options": {}
+      },
+      "name": "Save Translation",
+      "type": "n8n-nodes-base.mongoDb",
+      "typeVersion": 1,
+      "position": [
+        -640,
+        2400
+      ],
+      "id": "1c502055-099c-4574-b8d4-cdd5b8476f11"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "translation-agent",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "name": "Webhook Trigger2",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        -1600,
+        2400
+      ],
+      "id": "a7fef0ef-63ac-42aa-a775-c8acebccf637",
+      "webhookId": "7c4b08f8-fde0-4e87-ba82-f04aab0c1964"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "{\"status\": \"translations_queued\"}",
+        "options": {}
+      },
+      "name": "Respond1",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        -400,
+        2400
+      ],
+      "id": "c55ba9ec-af68-41e7-9f01-0c75462e31b8"
+    },
+    {
+      "parameters": {
+        "collection": "products",
+        "options": {
+          "limit": 1
+        },
+        "query": "={{ {\"_id\": $json.body.product_id} } }}"
+      },
+      "name": "Get Product",
+      "type": "n8n-nodes-base.mongoDb",
+      "typeVersion": 1,
+      "position": [
+        -1360,
+        2800
+      ],
+      "id": "051ac20d-0529-4a60-a494-030d424cc485"
+    },
+    {
+      "parameters": {
+        "model": "llama3-70b-8192",
+        "options": {}
+      },
+      "name": "Groq - Instagram Content",
+      "type": "@n8n/n8n-nodes-langchain.lmChatGroq",
+      "typeVersion": 1,
+      "position": [
+        -1120,
+        2992
+      ],
+      "id": "15e49217-a1b0-49c6-bd0d-27a783f20ce6"
+    },
+    {
+      "parameters": {
+        "jsCode": "const raw = $input.first().json.text || $input.first().json.choices?.[0]?.message?.content || '{}';\nlet parsed;\ntry { parsed = JSON.parse(raw.replace(/```json|```/g,'').trim()); } catch(e) { parsed = {caption: raw, hashtags: []}; }\nconst caption = parsed.caption + '\\n\\n' + (parsed.hashtags || []).join(' ');\nreturn [{ json: { ...parsed, full_post: caption, product_id: $('Webhook Trigger3').first().json.body.product_id } }];"
+      },
+      "name": "Format Post",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -880,
+        2800
+      ],
+      "id": "53dfae7e-da96-4af3-9e58-ef09e0966a8b"
+    },
+    {
+      "parameters": {
+        "operation": "insert",
+        "collection": "social_posts",
+        "options": {}
+      },
+      "name": "Save Post",
+      "type": "n8n-nodes-base.mongoDb",
+      "typeVersion": 1,
+      "position": [
+        -640,
+        2800
+      ],
+      "id": "26ea7328-69bb-43bb-b9f6-44634882067c"
+    },
+    {
+      "parameters": {
+        "chatId": "={{$env.TELEGRAM_ADMIN_CHAT_ID}}",
+        "text": "=📸 Instagram post ready!\n\nCaption preview:\n{{$('Format Post').first().json.caption.slice(0,200)}}...\n\nReels idea: {{$('Format Post').first().json.reels_idea}}\n\nApprove to schedule.",
+        "additionalFields": {}
+      },
+      "name": "Telegram - Post Preview",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1,
+      "position": [
+        -400,
+        2800
+      ],
+      "id": "8d6eb0c8-df0c-4500-a34a-633d69dc2831",
+      "webhookId": "e048d024-fa23-4fa3-bd2d-85a3a1fd0aa4"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "instagram-manager",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "name": "Webhook Trigger3",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        -1600,
+        2800
+      ],
+      "id": "d9bbf42b-3ec4-4c47-87d2-ef9d83184b8e",
+      "webhookId": "c32c3d21-06dd-40ac-9b1c-6ce27f4e1558"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\"status\": \"post_created\", \"post_id\": \"{{$('Save Post').first().json.insertedId}}\"}",
+        "options": {}
+      },
+      "name": "Respond2",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        -160,
+        2800
+      ],
+      "id": "29aaeb8f-7f01-4602-a96c-af814fde71d2"
+    },
+    {
+      "parameters": {
+        "dataType": "string",
+        "value1": "={{ $json.body.action }}"
+      },
+      "name": "Switch Action",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 2,
+      "position": [
+        -1360,
+        3200
+      ],
+      "id": "511b2e8d-b99e-49bf-bf57-1e32044dc7af"
+    },
+    {
+      "parameters": {
+        "model": "llama3-70b-8192",
+        "options": {}
+      },
+      "name": "Groq - Page Post",
+      "type": "@n8n/n8n-nodes-langchain.lmChatGroq",
+      "typeVersion": 1,
+      "position": [
+        -1120,
+        3184
+      ],
+      "id": "b9e1724e-f839-459a-ac5e-2aa41ab512dd"
+    },
+    {
+      "parameters": {
+        "model": "llama3-70b-8192",
+        "options": {}
+      },
+      "name": "Groq - Comment Reply",
+      "type": "@n8n/n8n-nodes-langchain.lmChatGroq",
+      "typeVersion": 1,
+      "position": [
+        -1120,
+        3360
+      ],
+      "id": "e5994657-be82-4775-b170-7777bf5e9728"
+    },
+    {
+      "parameters": {
+        "model": "llama3-70b-8192",
+        "options": {}
+      },
+      "name": "Groq - Ad Copy",
+      "type": "@n8n/n8n-nodes-langchain.lmChatGroq",
+      "typeVersion": 1,
+      "position": [
+        -1120,
+        3552
+      ],
+      "id": "8e097490-d171-4a11-b042-2562c658fda2"
+    },
+    {
+      "parameters": {
+        "operation": "insert",
+        "collection": "social_posts",
+        "options": {}
+      },
+      "name": "Save to DB",
+      "type": "n8n-nodes-base.mongoDb",
+      "typeVersion": 1,
+      "position": [
+        -880,
+        3200
+      ],
+      "id": "876b67a7-232e-4cc3-ad54-1b4a9ecc4a39"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "facebook-manager",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "name": "Webhook Trigger4",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        -1600,
+        3200
+      ],
+      "id": "da9d499e-dd93-4da0-bb66-9c3806ee34cb",
+      "webhookId": "38cb676e-0cde-42ea-bc06-3b00581f8b40"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "{\"status\": \"success\"}",
+        "options": {}
+      },
+      "name": "Respond3",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        -640,
+        3200
+      ],
+      "id": "8400025f-3116-4347-b5ba-b129358f0152"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Enrich this product listing and check whether it looks like a duplicate. Return ONLY valid JSON with fields: title, description, category, tags (array), duplicate_check (boolean, true if this looks like a duplicate of an existing product).\n\nProduct title: {{ $json.title }}\nPrice: {{ $json.price }}",
+        "batching": {}
+      },
+      "id": "d4e73baf-0eba-48e5-ba4e-16bb554868ee",
+      "name": "AI - Enrich Product",
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.9,
+      "position": [
+        -880,
+        -80
+      ]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Review this pricing calculation and suggest any adjustment. Return ONLY valid JSON with fields: selling_price, discounted_price, notes.\n\nProduct: {{ $json.product_name }}\nCost price: {{ $json.cost_price }}\nCalculated selling price: {{ $json.selling_price }}\nProfit margin: {{ $json.profit_margin_pct }}%",
+        "batching": {}
+      },
+      "id": "ceaa0f10-5f88-47db-a4cb-6839bf680b3c",
+      "name": "AI - Price Strategy",
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.9,
+      "position": [
+        -880,
+        912
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineAll",
+        "options": {}
+      },
+      "id": "56d494bf-e3b2-42da-9216-41c503fa7e8a",
+      "name": "Merge Trends and Products",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        -1120,
+        1312
+      ]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Analyze these Google Trends results together with our active product catalog. Identify trending opportunities. Return ONLY valid JSON with fields: trending_topics (array), recommended_products (array), summary (string).\n\nData: {{ JSON.stringify($json) }}",
+        "batching": {}
+      },
+      "id": "44ee043e-541a-4856-a98c-fd17bbc0ae94",
+      "name": "AI - Market Analysis",
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.9,
+      "position": [
+        -880,
+        1312
+      ]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Write a compelling product description. Return ONLY valid JSON with fields: caption, seo_keywords (array).\n\nData: {{ JSON.stringify($json.body) }}",
+        "batching": {}
+      },
+      "id": "c9fabfa2-295f-46c7-9b52-d0b5c1cadc47",
+      "name": "AI - Product Description",
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.9,
+      "position": [
+        -1120,
+        1520
+      ]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Write a blog post. Return ONLY valid JSON with fields: title, body, tags (array).\n\nData: {{ JSON.stringify($json.body) }}",
+        "batching": {}
+      },
+      "id": "1f3ad930-c749-4f4d-aa39-9a886bc5b37d",
+      "name": "AI - Blog Post",
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.9,
+      "position": [
+        -1120,
+        1712
+      ]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Write marketing email copy. Return ONLY valid JSON with fields: subject, body.\n\nData: {{ JSON.stringify($json.body) }}",
+        "batching": {}
+      },
+      "id": "ef310c71-bf64-40d0-bde5-3a4ecb564ac8",
+      "name": "AI - Email Copy",
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.9,
+      "position": [
+        -1120,
+        1888
+      ]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Write a set of frequently asked questions. Return ONLY valid JSON with field: faqs (array of {question, answer}).\n\nData: {{ JSON.stringify($json.body) }}",
+        "batching": {}
+      },
+      "id": "c8d803e0-c6a2-46a3-8a04-62566a65ad2f",
+      "name": "AI - FAQ",
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.9,
+      "position": [
+        -1120,
+        2064
+      ]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Translate the following text into {{ $json.lang_name }}. Return ONLY the translated text, no explanation, no quotes.\n\n{{ $json.source_text }}",
+        "batching": {}
+      },
+      "id": "67add0fd-c7b4-46a2-b464-ac87fc6ce814",
+      "name": "AI - Translate",
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.9,
+      "position": [
+        -880,
+        2400
+      ]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Create Instagram content for this product. Return ONLY valid JSON with fields: caption, hashtags (array), reels_idea (string).\n\nProduct: {{ JSON.stringify($json) }}",
+        "batching": {}
+      },
+      "id": "4e2c2546-6fb6-472f-b872-ab7988d480db",
+      "name": "AI - Instagram Content",
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.9,
+      "position": [
+        -1120,
+        2800
+      ]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Write a Facebook page post. Return ONLY valid JSON with field: post_text.\n\nData: {{ JSON.stringify($json.body) }}",
+        "batching": {}
+      },
+      "id": "a368068c-ae15-4671-969f-cc5745480ccd",
+      "name": "AI - Page Post",
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.9,
+      "position": [
+        -1120,
+        3088
+      ]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Write a friendly reply to this Facebook comment. Return ONLY valid JSON with field: reply_text.\n\nComment: {{ $json.body.comment_text }}",
+        "batching": {}
+      },
+      "id": "b22a08b1-4843-45da-a716-8c81cfccc433",
+      "name": "AI - Comment Reply",
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.9,
+      "position": [
+        -1120,
+        3264
+      ]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Write Facebook ad copy. Return ONLY valid JSON with fields: headline, primary_text, cta.\n\nData: {{ JSON.stringify($json.body) }}",
+        "batching": {}
+      },
+      "id": "bb6c5a5e-cda6-40b5-809d-8ad2c9c56c74",
+      "name": "AI - Ad Copy",
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.9,
+      "position": [
+        -1120,
+        3440
+      ]
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes"
+            }
+          ]
+        }
+      },
+      "id": "3e0763e0-d3b6-4c7e-961e-63890995ca4b",
+      "name": "Schedule Trigger - New Products",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1,
+      "position": [
+        -1600,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "collection": "products",
+        "options": {
+          "limit": 20
+        },
+        "query": "={{ {\"enriched\": {\"$ne\": true}} }}"
+      },
+      "id": "0a177f02-f0a1-414b-8e2c-be82ab73c155",
+      "name": "MongoDB - Find New Products",
+      "type": "n8n-nodes-base.mongoDb",
+      "typeVersion": 1.3,
+      "position": [
+        -1360,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "watch",
+        "collection": "orders"
+      },
+      "name": "MongoDB Watch Orders",
+      "type": "n8n-nodes-base.mongoDb",
+      "typeVersion": 1,
+      "position": [
+        160,
+        736
+      ],
+      "id": "36bed114-d1a3-4065-a46e-5c971593aca0"
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours"
+            }
+          ]
+        }
+      },
+      "name": "Schedule - Abandoned Cart Check",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1,
+      "position": [
+        160,
+        944
+      ],
+      "id": "53e34544-6a9d-4c9c-bdec-8f450d10e394"
+    },
+    {
+      "parameters": {},
+      "name": "Switch Email Type",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 2,
+      "position": [
+        384,
+        816
+      ],
+      "id": "ff84e21b-0575-48e2-b2fa-eb3cdf5d35f2"
+    },
+    {
+      "parameters": {
+        "model": "llama3-70b-8192",
+        "options": {}
+      },
+      "name": "Groq - Welcome Email",
+      "type": "@n8n/n8n-nodes-langchain.lmChatGroq",
+      "typeVersion": 1,
+      "position": [
+        592,
+        688
+      ],
+      "id": "06f26452-24e0-4ae2-96d1-b2f35f29da5b"
+    },
+    {
+      "parameters": {
+        "model": "llama3-70b-8192",
+        "options": {}
+      },
+      "name": "Groq - Promo Email",
+      "type": "@n8n/n8n-nodes-langchain.lmChatGroq",
+      "typeVersion": 1,
+      "position": [
+        592,
+        816
+      ],
+      "id": "ccea5c6f-49b3-460b-91b2-037698d3be3e"
+    },
+    {
+      "parameters": {
+        "model": "llama3-70b-8192",
+        "options": {}
+      },
+      "name": "Groq - Cart Recovery",
+      "type": "@n8n/n8n-nodes-langchain.lmChatGroq",
+      "typeVersion": 1,
+      "position": [
+        592,
+        960
+      ],
+      "id": "b9ad22f5-780b-424f-9afa-714c78dfc6d3"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.brevo.com/v3/smtp/email",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "api-key",
+              "value": "={{$env.BREVO_API_KEY}}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {}
+          ]
+        },
+        "options": {}
+      },
+      "name": "Brevo - Send Email",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        816,
+        816
+      ],
+      "id": "c0e73972-5566-42c2-8585-7fd7af8331aa"
+    },
+    {
+      "parameters": {
+        "operation": "insert",
+        "collection": "email_logs",
+        "options": {}
+      },
+      "name": "Log Email Sent",
+      "type": "n8n-nodes-base.mongoDb",
+      "typeVersion": 1,
+      "position": [
+        1040,
+        816
+      ],
+      "id": "7244005d-7610-4a1e-bbc6-020d933cc09a"
+    },
+    {
+      "parameters": {
+        "model": "llama3-70b-8192",
+        "options": {}
+      },
+      "name": "Groq - SEO Optimize",
+      "type": "@n8n/n8n-nodes-langchain.lmChatGroq",
+      "typeVersion": 1,
+      "position": [
+        384,
+        1600
+      ],
+      "id": "c427752b-4fb8-4db3-82b6-c365e780144b"
+    },
+    {
+      "parameters": {
+        "jsCode": "const raw = $input.first().json.choices?.[0]?.message?.content || '{}';\nlet parsed;\ntry { parsed = JSON.parse(raw.replace(/```json|```/g,'').trim()); } catch(e) { parsed = {}; }\nreturn [{ json: { ...parsed, source_id: $('Webhook Trigger5').first().json.body.product_id || $('Webhook Trigger5').first().json.body.content_id, optimized_at: new Date().toISOString() } }];"
+      },
+      "name": "Parse SEO Data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        608,
+        1600
+      ],
+      "id": "7464ca41-5eb3-427e-a1fb-5c9e721cc2fd"
+    },
+    {
+      "parameters": {
+        "operation": "insert",
+        "collection": "seo_metadata",
+        "options": {}
+      },
+      "name": "Save SEO Data",
+      "type": "n8n-nodes-base.mongoDb",
+      "typeVersion": 1,
+      "position": [
+        832,
+        1600
+      ],
+      "id": "756a1938-c5af-4a35-9b86-674d1ccbb5df"
+    },
+    {
+      "parameters": {
+        "method": "PUT",
+        "url": "={{$env.SHOPIFY_STORE_URL}}/admin/api/2024-01/products/{{$('Webhook Trigger5').first().json.body.product_id}}.json",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-Shopify-Access-Token",
+              "value": "={{$env.SHOPIFY_TOKEN}}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {}
+          ]
+        },
+        "options": {}
+      },
+      "name": "Update Shopify SEO",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        1040,
+        1600
+      ],
+      "id": "941e831b-926d-428d-84fd-53e90918b50e"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "seo-agent",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "name": "Webhook Trigger5",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        160,
+        1600
+      ],
+      "id": "48ec1d10-e4d2-420e-b55a-c6f82c1670b5",
+      "webhookId": "a82cea4f-4771-4f2b-8f4f-f308f76ac4b0"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\"status\": \"seo_updated\", \"meta_title\": \"{{$('Parse SEO Data').first().json.meta_title}}\"}",
+        "options": {}
+      },
+      "name": "Respond4",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        1264,
+        1600
+      ],
+      "id": "ecc4cda4-6392-48c5-b532-3cd0e6a2f03e"
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "weeks"
+            }
+          ]
+        }
+      },
+      "name": "Weekly Schedule",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1,
+      "position": [
+        -48,
+        2416
+      ],
+      "id": "bb1daecc-2457-4434-8816-a8ecb03d4d08"
+    },
+    {
+      "parameters": {
+        "operation": "findOne",
+        "collection": "market_research"
+      },
+      "name": "Get Latest Research",
+      "type": "n8n-nodes-base.mongoDb",
+      "typeVersion": 1,
+      "position": [
+        176,
+        2336
+      ],
+      "id": "b291230d-3b37-45db-9a68-07cdef7129a2"
+    },
+    {
+      "parameters": {
+        "collection": "products",
+        "options": {
+          "limit": 5
+        },
+        "query": "{\"status\": \"active\"}"
+      },
+      "name": "Get Top Products",
+      "type": "n8n-nodes-base.mongoDb",
+      "typeVersion": 1,
+      "position": [
+        176,
+        2512
+      ],
+      "id": "31738183-ab82-4613-8cd2-dce041c8967e"
+    },
+    {
+      "parameters": {
+        "model": "llama3-70b-8192",
+        "options": {}
+      },
+      "name": "Groq - Campaign Strategy",
+      "type": "@n8n/n8n-nodes-langchain.lmChatGroq",
+      "typeVersion": 1,
+      "position": [
+        400,
+        2416
+      ],
+      "id": "a148a11e-32e1-45a2-b8be-320b2c1e8a06"
+    },
+    {
+      "parameters": {
+        "jsCode": "const raw = $input.first().json.choices?.[0]?.message?.content || '{}';\nlet strategy;\ntry { strategy = JSON.parse(raw.replace(/```json|```/g,'').trim()); } catch(e) { strategy = {}; }\nreturn [{ json: strategy }];"
+      },
+      "name": "Parse Strategy",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        624,
+        2416
+      ],
+      "id": "77e7d0b0-1d6e-4946-b7b7-d44973a0ee76"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{$env.N8N_BASE_URL}}/webhook/instagram-manager",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {}
+          ]
+        },
+        "options": {}
+      },
+      "name": "Brief Instagram Agent",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        832,
+        2272
+      ],
+      "id": "a84b2b2a-4b0a-4422-844c-a5a9cc4d723c"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{$env.N8N_BASE_URL}}/webhook/facebook-manager",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {}
+          ]
+        },
+        "options": {}
+      },
+      "name": "Brief Facebook Agent",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        832,
+        2416
+      ],
+      "id": "1d87fead-78ab-4eea-913d-bcb3f3f94cd9"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{$env.N8N_BASE_URL}}/webhook/image-generation",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {}
+          ]
+        },
+        "options": {}
+      },
+      "name": "Brief Image Generation",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        832,
+        2560
+      ],
+      "id": "7d498e11-3867-4ead-afe2-8e936ce0c25f"
+    },
+    {
+      "parameters": {
+        "operation": "insert",
+        "collection": "campaigns",
+        "options": {}
+      },
+      "name": "Save Campaign",
+      "type": "n8n-nodes-base.mongoDb",
+      "typeVersion": 1,
+      "position": [
+        1056,
+        2416
+      ],
+      "id": "3489feb6-61aa-46bf-a125-58f364a818bd"
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours",
+              "hoursInterval": 24
+            }
+          ]
+        }
+      },
+      "name": "Daily 8am Schedule",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1,
+      "position": [
+        1248,
+        4736
+      ],
+      "id": "4f9348d0-435e-4704-b39f-3cc44cac6f68"
+    },
+    {
+      "parameters": {
+        "collection": "orders",
+        "options": {},
+        "query": "={\"created_at\": {\"$gte\": \"{{new Date(Date.now()-86400000).toISOString()}}\"}}"
+      },
+      "name": "Get Yesterday Orders",
+      "type": "n8n-nodes-base.mongoDb",
+      "typeVersion": 1,
+      "position": [
+        1456,
+        4656
+      ],
+      "id": "adf883d2-c1eb-47d0-b6d6-99df8f353fb8"
+    },
+    {
+      "parameters": {
+        "collection": "products",
+        "options": {},
+        "query": "{\"status\": \"active\"}"
+      },
+      "name": "Get Products",
+      "type": "n8n-nodes-base.mongoDb",
+      "typeVersion": 1,
+      "position": [
+        1456,
+        4864
+      ],
+      "id": "9d136202-044f-4487-bb55-083261bde06e"
+    },
+    {
+      "parameters": {
+        "jsCode": "const orders = $('Get Yesterday Orders').all().map(i=>i.json);\nconst totalRevenue = orders.reduce((sum,o)=>sum+(parseFloat(o.total_amount)||0),0);\nconst orderCount = orders.length;\nconst avgOrderValue = orderCount > 0 ? totalRevenue/orderCount : 0;\nconst topProducts = {};\norders.forEach(o=>{ (o.items||[]).forEach(item=>{ topProducts[item.product_id] = (topProducts[item.product_id]||0)+item.quantity; }); });\nconst topProductsSorted = Object.entries(topProducts).sort((a,b)=>b[1]-a[1]).slice(0,5);\nconst refunds = orders.filter(o=>o.status==='refunded').length;\nreturn [{ json: { total_revenue: Math.round(totalRevenue*100)/100, order_count: orderCount, avg_order_value: Math.round(avgOrderValue*100)/100, top_products: topProductsSorted, refund_count: refunds, refund_rate: orderCount > 0 ? Math.round(refunds/orderCount*100) : 0, date: new Date().toISOString().slice(0,10) } }];"
+      },
+      "name": "Calculate Metrics",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1680,
+        4736
+      ],
+      "id": "cee18bf1-0dd9-4044-a359-c0bd810f779e"
+    },
+    {
+      "parameters": {
+        "model": "llama3-70b-8192",
+        "options": {}
+      },
+      "name": "Groq - Write Report",
+      "type": "@n8n/n8n-nodes-langchain.lmChatGroq",
+      "typeVersion": 1,
+      "position": [
+        1904,
+        4736
+      ],
+      "id": "72d1da21-76a4-4a7e-964b-a4aa1a128505"
+    },
+    {
+      "parameters": {
+        "operation": "insert",
+        "collection": "analytics_reports",
+        "options": {}
+      },
+      "name": "Save Report",
+      "type": "n8n-nodes-base.mongoDb",
+      "typeVersion": 1,
+      "position": [
+        2128,
+        4736
+      ],
+      "id": "a9478022-7d53-4711-bb09-6f3e8c93f2ed"
+    },
+    {
+      "parameters": {
+        "chatId": "={{$env.TELEGRAM_ADMIN_CHAT_ID}}",
+        "text": "={{$('Groq - Write Report').first().json.choices?.[0]?.message?.content}}",
+        "additionalFields": {}
+      },
+      "name": "Telegram - Send Report",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1,
+      "position": [
+        2336,
+        4736
+      ],
+      "id": "0eeb2974-e351-435a-8d0f-c4677183ef37",
+      "webhookId": "abad1178-91e2-416c-abfd-9023a1937293"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{$env.N8N_BASE_URL}}/webhook/finance-agent",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {}
+          ]
+        },
+        "options": {}
+      },
+      "name": "Sync to Finance Agent",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        2560,
+        4736
+      ],
+      "id": "7481854d-878d-476b-845b-627a4063d941"
+    },
+    {
+      "parameters": {
+        "collection": "reviews",
+        "options": {
+          "limit": 20
+        },
+        "query": "{\"sentiment_analyzed\": {\"$ne\": true}}"
+      },
+      "name": "Get Unanalyzed Reviews",
+      "type": "n8n-nodes-base.mongoDb",
+      "typeVersion": 1,
+      "position": [
+        576,
+        3008
+      ],
+      "id": "c2a4337e-8f18-44aa-a10a-b7e0602c1e34"
+    },
+    {
+      "parameters": {
+        "model": "llama3-70b-8192",
+        "options": {}
+      },
+      "name": "Groq - Analyze Sentiment",
+      "type": "@n8n/n8n-nodes-langchain.lmChatGroq",
+      "typeVersion": 1,
+      "position": [
+        800,
+        3008
+      ],
+      "id": "68377185-b287-4d10-aa1a-bde3ae1b269f"
+    },
+    {
+      "parameters": {
+        "jsCode": "const raw = $input.first().json.choices?.[0]?.message?.content || '{}';\nlet analysis;\ntry { analysis = JSON.parse(raw.replace(/```json|```/g,'').trim()); } catch(e) { analysis = {}; }\nreturn [{ json: { ...analysis, analyzed_at: new Date().toISOString() } }];"
+      },
+      "name": "Parse Analysis",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1024,
+        3008
+      ],
+      "id": "1927e8c0-684f-4513-8238-c471eb695d22"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{$json['overall_sentiment']}}",
+              "value2": "negative"
+            }
+          ]
+        }
+      },
+      "name": "IF Negative",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        1248,
+        3008
+      ],
+      "id": "2bcbb3de-25bd-4ab8-b050-b2d4874a5dfa"
+    },
+    {
+      "parameters": {
+        "chatId": "={{$env.TELEGRAM_ADMIN_CHAT_ID}}",
+        "text": "=⭐ Reputation Alert!\n\nSentiment: {{$json['overall_sentiment']}} ({{$json['sentiment_score']}})\n\nTop complaints:\n{{($json['common_complaints']||[]).slice(0,3).map((c,i)=>(i+1)+'. '+c).join('\\n')}}\n\nUrgent issues: {{($json['urgent_issues']||[]).length}}\n\nCheck dashboard for full report.",
+        "additionalFields": {}
+      },
+      "name": "Telegram - Alert Negative",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1,
+      "position": [
+        1456,
+        2896
+      ],
+      "id": "86ebd50e-09e5-4123-a690-db15a627ba50",
+      "webhookId": "c3768e50-782e-43bb-a890-efb2cf38eac5"
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours",
+              "hoursInterval": 6
+            }
+          ]
+        }
+      },
+      "name": "Schedule Trigger1",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1,
+      "position": [
+        368,
+        3008
+      ],
+      "id": "6680d190-7126-4229-997b-2b682b25d649"
+    },
+    {
+      "parameters": {
+        "operation": "insert",
+        "collection": "reputation_reports",
+        "options": {}
+      },
+      "name": "Save Report1",
+      "type": "n8n-nodes-base.mongoDb",
+      "typeVersion": 1,
+      "position": [
+        1456,
+        3120
+      ],
+      "id": "406593f1-13a7-497a-aee9-107518b2baca"
+    },
+    {
+      "parameters": {
+        "operation": "watch",
+        "collection": "orders"
+      },
+      "name": "MongoDB Watch New Orders",
+      "type": "n8n-nodes-base.mongoDb",
+      "typeVersion": 1,
+      "position": [
+        -336,
+        2096
+      ],
+      "id": "227bb9d9-c7dc-4d16-8c80-eb62f6701d5a"
+    },
+    {
+      "parameters": {
+        "collection": "orders",
+        "options": {
+          "limit": 20
+        },
+        "query": "={\"customer_email\": \"{{$json['customer_email']}}\"}"
+      },
+      "name": "Get Customer Order History",
+      "type": "n8n-nodes-base.mongoDb",
+      "typeVersion": 1,
+      "position": [
+        -112,
+        2096
+      ],
+      "id": "b0601c2c-c26a-491f-b896-3a52fbaa0a90"
+    },
+    {
+      "parameters": {
+        "jsCode": "const newOrder = $('MongoDB Watch New Orders').first().json;\nconst history = $input.all().map(i=>i.json);\nlet riskScore = 0;\nconst flags = [];\n\nif (parseFloat(newOrder.total_amount) > 500) { riskScore += 20; flags.push('High value order'); }\nif (history.filter(o=>o.status==='refunded').length > 2) { riskScore += 30; flags.push('Multiple past refunds'); }\nconst recentOrders = history.filter(o=>Date.now()-new Date(o.created_at).getTime() < 3600000);\nif (recentOrders.length > 3) { riskScore += 40; flags.push('Multiple orders in 1 hour'); }\nif (history.length > 0 && history[0].shipping_address !== newOrder.shipping_address) { riskScore += 10; flags.push('New shipping address'); }\nconst duplicates = history.filter(o=>JSON.stringify(o.items)===JSON.stringify(newOrder.items) && o._id !== newOrder._id);\nif (duplicates.length > 0) { riskScore += 35; flags.push('Duplicate order detected'); }\n\nconst risk_level = riskScore >= 60 ? 'high' : riskScore >= 30 ? 'medium' : 'low';\nreturn [{ json: { order_id: newOrder._id, customer_email: newOrder.customer_email, risk_score: riskScore, risk_level, flags, order_amount: newOrder.total_amount } }];"
+      },
+      "name": "Calculate Risk Score",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        112,
+        2096
+      ],
+      "id": "33d0b8a6-7ef2-4df4-b058-9e331d9b1840"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{$json['risk_level']}}",
+              "operation": "notEqual",
+              "value2": "low"
+            }
+          ]
+        }
+      },
+      "name": "IF Medium or High Risk",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        336,
+        2096
+      ],
+      "id": "c5b130e4-b4c3-41f0-9305-7360398c7ae2"
+    },
+    {
+      "parameters": {
+        "model": "llama3-70b-8192",
+        "options": {}
+      },
+      "name": "Groq - Fraud Analysis",
+      "type": "@n8n/n8n-nodes-langchain.lmChatGroq",
+      "typeVersion": 1,
+      "position": [
+        544,
+        1984
+      ],
+      "id": "5ba1799f-28ec-4397-aabd-68de661a166d"
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "collection": "orders",
+        "options": {}
+      },
+      "name": "Flag Order",
+      "type": "n8n-nodes-base.mongoDb",
+      "typeVersion": 1,
+      "position": [
+        544,
+        2144
+      ],
+      "id": "6fa66a89-51cf-4c30-b96b-d5fcba62087e"
+    },
+    {
+      "parameters": {
+        "chatId": "={{$env.TELEGRAM_ADMIN_CHAT_ID}}",
+        "text": "=🚨 Fraud Alert!\n\nOrder ID: {{$('Calculate Risk Score').first().json.order_id}}\nRisk Level: {{$('Calculate Risk Score').first().json.risk_level.toUpperCase()}}\nScore: {{$('Calculate Risk Score').first().json.risk_score}}/100\nAmount: ₹{{$('Calculate Risk Score').first().json.order_amount}}\n\nFlags:\n{{$('Calculate Risk Score').first().json.flags.map((f,i)=>(i+1)+'. '+f).join('\\n')}}\n\nReview required before shipping!",
+        "additionalFields": {}
+      },
+      "name": "Telegram - Fraud Alert",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1,
+      "position": [
+        768,
+        2064
+      ],
+      "id": "ccdab390-cfa4-43fb-bbee-b96a69204dff",
+      "webhookId": "0d07a286-72de-4ceb-bec8-5007a4365b07"
+    },
+    {
+      "parameters": {
+        "collection": "orders",
+        "options": {},
+        "query": "={\"created_at\": {\"$gte\": \"{{new Date(Date.now()-86400000).toISOString()}}\"}}"
+      },
+      "name": "Get Daily Orders",
+      "type": "n8n-nodes-base.mongoDb",
+      "typeVersion": 1,
+      "position": [
+        2208,
+        3424
+      ],
+      "id": "1d5363d6-de39-4e55-bed2-0fb01a150a57"
+    },
+    {
+      "parameters": {
+        "collection": "expenses",
+        "options": {},
+        "query": "={\"date\": {\"$gte\": \"{{new Date(Date.now()-86400000).toISOString()}}\"}}"
+      },
+      "name": "Get Daily Expenses",
+      "type": "n8n-nodes-base.mongoDb",
+      "typeVersion": 1,
+      "position": [
+        2208,
+        3632
+      ],
+      "id": "cb8135f2-07b6-4851-8ddc-d17fd4122c05"
+    },
+    {
+      "parameters": {
+        "jsCode": "const orders = $('Get Daily Orders').all().map(i=>i.json);\nconst expenses = $('Get Daily Expenses').all().map(i=>i.json);\n\nconst revenue = orders.filter(o=>o.status!=='refunded').reduce((s,o)=>s+(parseFloat(o.total_amount)||0),0);\nconst refunds = orders.filter(o=>o.status==='refunded').reduce((s,o)=>s+(parseFloat(o.total_amount)||0),0);\nconst totalExpenses = expenses.reduce((s,e)=>s+(parseFloat(e.amount)||0),0);\nconst cogs = orders.reduce((s,o)=>s+(parseFloat(o.cost_of_goods)||0),0);\nconst grossProfit = revenue - cogs - refunds;\nconst netProfit = grossProfit - totalExpenses;\nconst profitMargin = revenue > 0 ? (netProfit/revenue*100) : 0;\n\nreturn [{ json: { date: new Date().toISOString().slice(0,10), revenue: Math.round(revenue*100)/100, refunds: Math.round(refunds*100)/100, cogs: Math.round(cogs*100)/100, gross_profit: Math.round(grossProfit*100)/100, total_expenses: Math.round(totalExpenses*100)/100, net_profit: Math.round(netProfit*100)/100, profit_margin_pct: Math.round(profitMargin*10)/10, order_count: orders.length } }];"
+      },
+      "name": "Calculate P&L",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2432,
+        3504
+      ],
+      "id": "75869143-3dca-4efa-b122-a1656ea67f24"
+    },
+    {
+      "parameters": {
+        "operation": "insert",
+        "collection": "finance_reports",
+        "options": {}
+      },
+      "name": "Save Finance Report",
+      "type": "n8n-nodes-base.mongoDb",
+      "typeVersion": 1,
+      "position": [
+        2656,
+        3504
+      ],
+      "id": "394e5345-54a1-4f05-b84e-5ba23471e057"
+    },
+    {
+      "parameters": {
+        "chatId": "={{$env.TELEGRAM_ADMIN_CHAT_ID}}",
+        "text": "=💼 Daily Finance Report — {{$('Calculate P&L').first().json.date}}\n\n💰 Revenue: ₹{{$('Calculate P&L').first().json.revenue}}\n↩️ Refunds: ₹{{$('Calculate P&L').first().json.refunds}}\n📦 COGS: ₹{{$('Calculate P&L').first().json.cogs}}\n🏷 Expenses: ₹{{$('Calculate P&L').first().json.total_expenses}}\n\n✅ Net Profit: ₹{{$('Calculate P&L').first().json.net_profit}}\n📊 Margin: {{$('Calculate P&L').first().json.profit_margin_pct}}%",
+        "additionalFields": {}
+      },
+      "name": "Telegram - Finance Report",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1,
+      "position": [
+        2864,
+        3504
+      ],
+      "id": "07c5e03c-03eb-498a-86e8-90edd8a08e68",
+      "webhookId": "7aac4066-684d-4481-aca4-c85276d900fc"
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours",
+              "hoursInterval": 24
+            }
+          ]
+        }
+      },
+      "name": "Daily Schedule1",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1,
+      "position": [
+        1984,
+        3424
+      ],
+      "id": "66412122-c6b4-4885-997e-53d4cf91634c"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "finance-agent",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "name": "Webhook Trigger6",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        1984,
+        3632
+      ],
+      "id": "9aa848c4-46e2-40de-926c-96db8713398b",
+      "webhookId": "54c3a3bc-47ce-4f8f-acc0-71c14ae72335"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\"status\": \"synced\"}",
+        "options": {}
+      },
+      "name": "Respond5",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        3088,
+        3504
+      ],
+      "id": "6a516b7e-43e6-4bcf-bc4f-01af6876c743"
+    },
+    {
+      "parameters": {
+        "operation": "findOne",
+        "collection": "suppliers"
+      },
+      "name": "Get Supplier Info",
+      "type": "n8n-nodes-base.mongoDb",
+      "typeVersion": 1,
+      "position": [
+        2176,
+        4192
+      ],
+      "id": "1f34f69a-51d3-48fb-a4a0-e41ea267135a"
+    },
+    {
+      "parameters": {
+        "model": "llama3-70b-8192",
+        "options": {}
+      },
+      "name": "Groq - Restock Email",
+      "type": "@n8n/n8n-nodes-langchain.lmChatGroq",
+      "typeVersion": 1,
+      "position": [
+        2608,
+        4048
+      ],
+      "id": "698a0e81-a89d-41c1-8083-d311b8cff488"
+    },
+    {
+      "parameters": {
+        "model": "llama3-70b-8192",
+        "options": {}
+      },
+      "name": "Groq - Price Inquiry",
+      "type": "@n8n/n8n-nodes-langchain.lmChatGroq",
+      "typeVersion": 1,
+      "position": [
+        2608,
+        4192
+      ],
+      "id": "2a5fd499-ba56-4d05-807b-83d3e97f3fff"
+    },
+    {
+      "parameters": {
+        "model": "llama3-70b-8192",
+        "options": {}
+      },
+      "name": "Groq - Sourcing Email",
+      "type": "@n8n/n8n-nodes-langchain.lmChatGroq",
+      "typeVersion": 1,
+      "position": [
+        2608,
+        4336
+      ],
+      "id": "4a113f86-2545-46a3-bc2b-f8e84be77c5f"
+    },
+    {
+      "parameters": {
+        "fromEmail": "={{$env.STORE_EMAIL}}",
+        "toEmail": "={{$('Get Supplier Info').first().json.contact_email}}",
+        "subject": "={{JSON.parse($json.choices?.[0]?.message?.content || '{}').subject || 'Business Inquiry'}}",
+        "text": "={{JSON.parse($json.choices?.[0]?.message?.content || '{}').email_body || ''}}",
+        "options": {}
+      },
+      "name": "Send Email to Supplier",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2,
+      "position": [
+        2832,
+        4192
+      ],
+      "id": "3546dcbf-e33d-44fe-b324-d2e26fe81735",
+      "webhookId": "1120410a-34f6-41e0-8f67-84c310ef2df6"
+    },
+    {
+      "parameters": {
+        "operation": "insert",
+        "collection": "supplier_communications",
+        "options": {}
+      },
+      "name": "Log Communication",
+      "type": "n8n-nodes-base.mongoDb",
+      "typeVersion": 1,
+      "position": [
+        3056,
+        4192
+      ],
+      "id": "a3074129-02d9-4741-9733-9f963683a50c"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "supplier-management",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "name": "Webhook Trigger7",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        1952,
+        4192
+      ],
+      "id": "b11cba92-d866-4f0e-b445-4da7c192f976",
+      "webhookId": "bf4733e5-c866-4bae-9032-1042fb1ee693"
+    },
+    {
+      "parameters": {},
+      "name": "Switch Action1",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 2,
+      "position": [
+        2400,
+        4192
+      ],
+      "id": "88f6f253-8f9c-42a4-a9dc-7a96375a519f"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "{\"status\": \"email_sent\"}",
+        "options": {}
+      },
+      "name": "Respond6",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        3280,
+        4192
+      ],
+      "id": "d6349b40-0955-4012-8448-e9a53d28430f"
+    },
+    {
+      "parameters": {
+        "operation": "findOne",
+        "collection": "products"
+      },
+      "name": "Get Product Data",
+      "type": "n8n-nodes-base.mongoDb",
+      "typeVersion": 1,
+      "position": [
+        2016,
+        3232
+      ],
+      "id": "7c1190f7-a0b3-4314-8911-33a98a522614"
+    },
+    {
+      "parameters": {
+        "model": "llama3-70b-8192",
+        "options": {}
+      },
+      "name": "Groq - Generate Prompts",
+      "type": "@n8n/n8n-nodes-langchain.lmChatGroq",
+      "typeVersion": 1,
+      "position": [
+        2240,
+        3232
+      ],
+      "id": "0ec4d56a-be75-4365-8f05-016748c6e12c"
+    },
+    {
+      "parameters": {
+        "jsCode": "const raw = $input.first().json.choices?.[0]?.message?.content || '{}';\nlet prompts;\ntry { prompts = JSON.parse(raw.replace(/```json|```/g,'').trim()); } catch(e) { prompts = {}; }\nreturn [{ json: prompts }];"
+      },
+      "name": "Parse Prompts",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2464,
+        3232
+      ],
+      "id": "380d9a25-a52e-4420-a8e9-7023a5b3eb83"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{$env.STABLE_DIFFUSION_URL}}/sdapi/v1/txt2img",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {}
+          ]
+        },
+        "options": {}
+      },
+      "name": "Stable Diffusion API",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        2672,
+        3232
+      ],
+      "id": "f2ae02d1-657b-4c7b-99ea-680a687b0904"
+    },
+    {
+      "parameters": {
+        "jsCode": "const sdResponse = $input.first().json;\nconst base64Image = sdResponse.images?.[0];\nconst filename = 'product_' + Date.now() + '.png';\nreturn [{ json: { filename, base64Image, product_id: $('Webhook Trigger8').first().json.body.product_id } }];"
+      },
+      "name": "Extract Image",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2896,
+        3232
+      ],
+      "id": "6b187a05-1aa0-4e83-8574-e798ea90ba52"
+    },
+    {
+      "parameters": {
+        "operation": "insert",
+        "collection": "product_images",
+        "options": {}
+      },
+      "name": "Save Image Reference",
+      "type": "n8n-nodes-base.mongoDb",
+      "typeVersion": 1,
+      "position": [
+        3120,
+        3232
+      ],
+      "id": "87dd735a-57f9-4d30-8645-98243d61d2a1"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "image-generation",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "name": "Webhook Trigger8",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        1792,
+        3232
+      ],
+      "id": "9c627ba1-d2c7-4fe2-97c4-73b4184bacb7",
+      "webhookId": "5ef3f7f9-fc06-4764-b7a0-6883c67433f7"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\"status\": \"generated\", \"filename\": \"{{$('Extract Image').first().json.filename}}\"}",
+        "options": {}
+      },
+      "name": "Respond7",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        3344,
+        3232
+      ],
+      "id": "1b8751ec-1c28-40e6-9882-e97b04c092a5"
+    },
+    {
+      "parameters": {
+        "operation": "findOne",
+        "collection": "products"
+      },
+      "name": "Fetch Full Product",
+      "type": "n8n-nodes-base.mongoDb",
+      "typeVersion": 1,
+      "position": [
+        2784,
+        5232
+      ],
+      "id": "be0ab414-22be-4e3b-9e45-bf9ddeaf14c3"
+    },
+    {
+      "parameters": {
+        "jsCode": "const p = $input.first().json;\nconst checks = [];\nlet passed = true;\n\nif (!p.title || p.title.length < 10) { checks.push({ check: 'title', status: 'fail', reason: 'Missing or too short title' }); passed = false; }\nelse checks.push({ check: 'title', status: 'pass' });\n\nif (!p.description || p.description.length < 50) { checks.push({ check: 'description', status: 'fail', reason: 'Missing or too short description' }); passed = false; }\nelse checks.push({ check: 'description', status: 'pass' });\n\nif (!p.selling_price || parseFloat(p.selling_price) <= 0) { checks.push({ check: 'price', status: 'fail', reason: 'Invalid or missing price' }); passed = false; }\nelse if (p.cost_price && parseFloat(p.selling_price) < parseFloat(p.cost_price)) { checks.push({ check: 'price', status: 'fail', reason: 'Selling price below cost' }); passed = false; }\nelse checks.push({ check: 'price', status: 'pass' });\n\nif (!p.images || p.images.length === 0) { checks.push({ check: 'images', status: 'fail', reason: 'No product images' }); passed = false; }\nelse checks.push({ check: 'images', status: 'pass' });\n\nif (!p.category) { checks.push({ check: 'category', status: 'warn', reason: 'No category assigned' }); }\nelse checks.push({ check: 'category', status: 'pass' });\n\nif (!p.seo_keywords || p.seo_keywords.length === 0) { checks.push({ check: 'seo', status: 'warn', reason: 'No SEO keywords' }); }\nelse checks.push({ check: 'seo', status: 'pass' });\n\nreturn [{ json: { product_id: p._id, product_title: p.title, checks, passed, checked_at: new Date().toISOString() } }];"
+      },
+      "name": "Run QC Checks",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3008,
+        5232
+      ],
+      "id": "208271d3-5760-4e55-be0b-c800f0df0085"
+    },
+    {
+      "parameters": {
+        "model": "llama3-70b-8192",
+        "options": {}
+      },
+      "name": "Groq - AI QC Review",
+      "type": "@n8n/n8n-nodes-langchain.lmChatGroq",
+      "typeVersion": 1,
+      "position": [
+        3232,
+        5232
+      ],
+      "id": "f214b990-b3a7-4580-abc2-fb6ccc98b94f"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{$('Run QC Checks').first().json['passed']}}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "name": "IF All Checks Pass",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        3456,
+        5232
+      ],
+      "id": "1cd05e5c-1cfe-4f44-b70b-e3062835126d"
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "collection": "products",
+        "options": {}
+      },
+      "name": "Approve & Publish",
+      "type": "n8n-nodes-base.mongoDb",
+      "typeVersion": 1,
+      "position": [
+        3664,
+        5104
+      ],
+      "id": "03b0e4d9-f0a8-41ee-9acc-5090a5762ce2"
+    },
+    {
+      "parameters": {
+        "chatId": "={{$env.TELEGRAM_ADMIN_CHAT_ID}}",
+        "text": "=✅ Product Approved!\n\n{{$('Run QC Checks').first().json.product_title}}\n\nAll {{$('Run QC Checks').first().json.checks.length}} QC checks passed. Product is now live!",
+        "additionalFields": {}
+      },
+      "name": "Telegram - Approved",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1,
+      "position": [
+        3888,
+        5104
+      ],
+      "id": "c4e50231-8b35-46bc-8ae4-8eda9f034a51",
+      "webhookId": "bb37bc70-8284-44e4-81fc-b20f6f9b0170"
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "collection": "products",
+        "options": {}
+      },
+      "name": "Flag as Failed",
+      "type": "n8n-nodes-base.mongoDb",
+      "typeVersion": 1,
+      "position": [
+        3664,
+        5376
+      ],
+      "id": "18f76c8e-fa39-4835-afe7-27c227f59c25"
+    },
+    {
+      "parameters": {
+        "chatId": "={{$env.TELEGRAM_ADMIN_CHAT_ID}}",
+        "text": "=❌ QC Failed!\n\nProduct: {{$('Run QC Checks').first().json.product_title}}\n\nFailed checks:\n{{$('Run QC Checks').first().json.checks.filter(c=>c.status==='fail').map(c=>'• '+c.check+': '+c.reason).join('\\n')}}\n\nPlease fix and resubmit.",
+        "additionalFields": {}
+      },
+      "name": "Telegram - Failed",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1,
+      "position": [
+        3888,
+        5376
+      ],
+      "id": "fe5f968a-aa97-4457-80d4-cd5b6b3155a7",
+      "webhookId": "0e10d93b-f0b6-41f6-a70a-443cec43f6cc"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "quality-control",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "name": "Webhook Trigger9",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        2576,
+        5232
+      ],
+      "id": "7bfb6621-fc41-4192-8a73-af5e818e85e2",
+      "webhookId": "f9146111-7f9c-4c39-aaf7-695175480337"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\"status\": \"qc_complete\", \"passed\": {{$('Run QC Checks').first().json.passed}}, \"product_id\": \"{{$('Run QC Checks').first().json.product_id}}\"}",
+        "options": {}
+      },
+      "name": "Respond8",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        4112,
+        5232
+      ],
+      "id": "1bf7c48c-6fda-4513-a814-d1739f4febb4"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "IF Valid Product": {
+      "main": [
+        [
+          {
+            "node": "AI - Enrich Product",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Mark Invalid",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse AI Response": {
+      "main": [
+        [
+          {
+            "node": "IF Not Duplicate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF Not Duplicate": {
+      "main": [
+        [
+          {
+            "node": "MongoDB - Update Product",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Flag as Duplicate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "MongoDB - Update Product": {
+      "main": [
+        [
+          {
+            "node": "Notify Quality Control",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Notify Content Writer",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Flag as Duplicate": {
+      "main": [
+        [
+          {
+            "node": "Telegram - Alert Duplicate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "MongoDB - Read Inventory",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "MongoDB - Read Inventory": {
+      "main": [
+        [
+          {
+            "node": "Classify Stock Levels",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Classify Stock Levels": {
+      "main": [
+        [
+          {
+            "node": "IF Issues Found",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF Issues Found": {
+      "main": [
+        [
+          {
+            "node": "Mark Out of Stock",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Notify Pricing Agent",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Telegram - Stock Alert",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Log Healthy Check",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook Trigger": {
+      "main": [
+        [
+          {
+            "node": "MongoDB - Get Product",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "MongoDB - Get Product": {
+      "main": [
+        [
+          {
+            "node": "Calculate Price Formula",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "MongoDB - Update Price": {
+      "main": [
+        [
+          {
+            "node": "Notify QC",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Notify QC": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Daily Schedule": {
+      "main": [
+        [
+          {
+            "node": "Google Trends API",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Get Active Products",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save Research Report": {
+      "main": [
+        [
+          {
+            "node": "Trigger Content Writer",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Trigger Content Writer": {
+      "main": [
+        [
+          {
+            "node": "Telegram - Research Done",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save to Content Queue": {
+      "main": [
+        [
+          {
+            "node": "Send to Translation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send to Translation": {
+      "main": [
+        [
+          {
+            "node": "Respond",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook Trigger1": {
+      "main": [
+        [
+          {
+            "node": "Switch Content Type",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Content": {
+      "main": [
+        [
+          {
+            "node": "Split by Language",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save Translation": {
+      "main": [
+        [
+          {
+            "node": "Respond1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook Trigger2": {
+      "main": [
+        [
+          {
+            "node": "Get Content",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Post": {
+      "main": [
+        [
+          {
+            "node": "Save Post",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save Post": {
+      "main": [
+        [
+          {
+            "node": "Telegram - Post Preview",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Telegram - Post Preview": {
+      "main": [
+        [
+          {
+            "node": "Respond2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook Trigger3": {
+      "main": [
+        [
+          {
+            "node": "Get Product",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save to DB": {
+      "main": [
+        [
+          {
+            "node": "Respond3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook Trigger4": {
+      "main": [
+        [
+          {
+            "node": "Switch Action",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Groq - Enrich Product": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI - Enrich Product",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI - Enrich Product": {
+      "main": [
+        [
+          {
+            "node": "Parse AI Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Groq - Price Strategy": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI - Price Strategy",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Calculate Price Formula": {
+      "main": [
+        [
+          {
+            "node": "AI - Price Strategy",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI - Price Strategy": {
+      "main": [
+        [
+          {
+            "node": "MongoDB - Update Price",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Trends API": {
+      "main": [
+        [
+          {
+            "node": "Merge Trends and Products",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Active Products": {
+      "main": [
+        [
+          {
+            "node": "Merge Trends and Products",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Groq - Market Analysis": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI - Market Analysis",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge Trends and Products": {
+      "main": [
+        [
+          {
+            "node": "AI - Market Analysis",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI - Market Analysis": {
+      "main": [
+        [
+          {
+            "node": "Save Research Report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Groq - Product Description": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI - Product Description",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch Content Type": {
+      "main": [
+        [
+          {
+            "node": "AI - Product Description",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "AI - Blog Post",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "AI - Email Copy",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "AI - FAQ",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI - Product Description": {
+      "main": [
+        [
+          {
+            "node": "Save to Content Queue",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Groq - Blog Post": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI - Blog Post",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI - Blog Post": {
+      "main": [
+        [
+          {
+            "node": "Save to Content Queue",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Groq - Email Copy": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI - Email Copy",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI - Email Copy": {
+      "main": [
+        [
+          {
+            "node": "Save to Content Queue",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Groq - FAQ": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI - FAQ",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI - FAQ": {
+      "main": [
+        [
+          {
+            "node": "Save to Content Queue",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Groq - Translate": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI - Translate",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split by Language": {
+      "main": [
+        [
+          {
+            "node": "AI - Translate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI - Translate": {
+      "main": [
+        [
+          {
+            "node": "Save Translation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Groq - Instagram Content": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI - Instagram Content",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Product": {
+      "main": [
+        [
+          {
+            "node": "AI - Instagram Content",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI - Instagram Content": {
+      "main": [
+        [
+          {
+            "node": "Format Post",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Groq - Page Post": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI - Page Post",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch Action": {
+      "main": [
+        [
+          {
+            "node": "AI - Page Post",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "AI - Comment Reply",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "AI - Ad Copy",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI - Page Post": {
+      "main": [
+        [
+          {
+            "node": "Save to DB",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Groq - Comment Reply": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI - Comment Reply",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI - Comment Reply": {
+      "main": [
+        [
+          {
+            "node": "Save to DB",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Groq - Ad Copy": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI - Ad Copy",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI - Ad Copy": {
+      "main": [
+        [
+          {
+            "node": "Save to DB",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Schedule Trigger - New Products": {
+      "main": [
+        [
+          {
+            "node": "MongoDB - Find New Products",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "MongoDB - Find New Products": {
+      "main": [
+        [
+          {
+            "node": "IF Valid Product",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "MongoDB Watch Orders": {
+      "main": [
+        [
+          {
+            "node": "Switch Email Type",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Schedule - Abandoned Cart Check": {
+      "main": [
+        [
+          {
+            "node": "Switch Email Type",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Brevo - Send Email": {
+      "main": [
+        [
+          {
+            "node": "Log Email Sent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse SEO Data": {
+      "main": [
+        [
+          {
+            "node": "Save SEO Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save SEO Data": {
+      "main": [
+        [
+          {
+            "node": "Update Shopify SEO",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Shopify SEO": {
+      "main": [
+        [
+          {
+            "node": "Respond4",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Weekly Schedule": {
+      "main": [
+        [
+          {
+            "node": "Get Latest Research",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Get Top Products",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Strategy": {
+      "main": [
+        [
+          {
+            "node": "Brief Instagram Agent",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Brief Facebook Agent",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Brief Image Generation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Brief Facebook Agent": {
+      "main": [
+        [
+          {
+            "node": "Save Campaign",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Daily 8am Schedule": {
+      "main": [
+        [
+          {
+            "node": "Get Yesterday Orders",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Get Products",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Yesterday Orders": {
+      "main": [
+        [
+          {
+            "node": "Calculate Metrics",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Products": {
+      "main": [
+        [
+          {
+            "node": "Calculate Metrics",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save Report": {
+      "main": [
+        [
+          {
+            "node": "Telegram - Send Report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Telegram - Send Report": {
+      "main": [
+        [
+          {
+            "node": "Sync to Finance Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Analysis": {
+      "main": [
+        [
+          {
+            "node": "IF Negative",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF Negative": {
+      "main": [
+        [
+          {
+            "node": "Telegram - Alert Negative",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Save Report1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Telegram - Alert Negative": {
+      "main": [
+        [
+          {
+            "node": "Save Report1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Schedule Trigger1": {
+      "main": [
+        [
+          {
+            "node": "Get Unanalyzed Reviews",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "MongoDB Watch New Orders": {
+      "main": [
+        [
+          {
+            "node": "Get Customer Order History",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Customer Order History": {
+      "main": [
+        [
+          {
+            "node": "Calculate Risk Score",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Calculate Risk Score": {
+      "main": [
+        [
+          {
+            "node": "IF Medium or High Risk",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF Medium or High Risk": {
+      "main": [
+        [
+          {
+            "node": "Flag Order",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Flag Order": {
+      "main": [
+        [
+          {
+            "node": "Telegram - Fraud Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Daily Orders": {
+      "main": [
+        [
+          {
+            "node": "Calculate P&L",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Daily Expenses": {
+      "main": [
+        [
+          {
+            "node": "Calculate P&L",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Calculate P&L": {
+      "main": [
+        [
+          {
+            "node": "Save Finance Report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save Finance Report": {
+      "main": [
+        [
+          {
+            "node": "Telegram - Finance Report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Telegram - Finance Report": {
+      "main": [
+        [
+          {
+            "node": "Respond5",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Daily Schedule1": {
+      "main": [
+        [
+          {
+            "node": "Get Daily Orders",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook Trigger6": {
+      "main": [
+        [
+          {
+            "node": "Get Daily Orders",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Supplier Info": {
+      "main": [
+        [
+          {
+            "node": "Switch Action1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Email to Supplier": {
+      "main": [
+        [
+          {
+            "node": "Log Communication",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Communication": {
+      "main": [
+        [
+          {
+            "node": "Respond6",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook Trigger7": {
+      "main": [
+        [
+          {
+            "node": "Get Supplier Info",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Prompts": {
+      "main": [
+        [
+          {
+            "node": "Stable Diffusion API",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Stable Diffusion API": {
+      "main": [
+        [
+          {
+            "node": "Extract Image",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Image": {
+      "main": [
+        [
+          {
+            "node": "Save Image Reference",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save Image Reference": {
+      "main": [
+        [
+          {
+            "node": "Respond7",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook Trigger8": {
+      "main": [
+        [
+          {
+            "node": "Get Product Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Full Product": {
+      "main": [
+        [
+          {
+            "node": "Run QC Checks",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF All Checks Pass": {
+      "main": [
+        [
+          {
+            "node": "Approve & Publish",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Flag as Failed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Approve & Publish": {
+      "main": [
+        [
+          {
+            "node": "Telegram - Approved",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Flag as Failed": {
+      "main": [
+        [
+          {
+            "node": "Telegram - Failed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Telegram - Approved": {
+      "main": [
+        [
+          {
+            "node": "Respond8",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Telegram - Failed": {
+      "main": [
+        [
+          {
+            "node": "Respond8",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook Trigger9": {
+      "main": [
+        [
+          {
+            "node": "Fetch Full Product",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": true,
+    "timeSavedMode": "fixed",
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "versionId": "dbfebde1-9522-4d4a-898d-94c96c459db5",
+  "meta": {
+    "aiBuilderAssisted": true,
+    "builderVariant": "mcp",
+    "instanceId": "c3ca8eefef5643d5dbee152dd1626b96b941398730d07ec75e44368b97ddabfa"
+  },
+  "nodeGroups": [],
+  "id": "wz24CHjHc81r9pKF",
+  "tags": []
+}
