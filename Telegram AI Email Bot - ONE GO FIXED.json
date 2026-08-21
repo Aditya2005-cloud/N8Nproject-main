@@ -1,0 +1,1418 @@
+{
+  "name": "Telegram AI Email Bot - ONE GO FIXED",
+  "nodes": [
+    {
+      "parameters": {
+        "updates": [
+          "message"
+        ],
+        "additionalFields": {}
+      },
+      "id": "f5815af5-3750-4230-b604-66f4f5d7b02d",
+      "name": "Telegram Trigger",
+      "type": "n8n-nodes-base.telegramTrigger",
+      "typeVersion": 1.5,
+      "position": [
+        -512,
+        224
+      ],
+      "webhookId": "eac55736-0689-4e5d-8f47-f0a69cf355a9",
+      "credentials": {
+        "telegramApi": {
+          "id": "g5V78Y7ZaXvJPQ1A",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const m = $json.message || {};\nconst text = (m.text || '').trim();\nreturn [{\n  json: {\n    name: [m.from?.first_name, m.from?.last_name].filter(Boolean).join(' '),\n    telegram_username: m.from?.username || '',\n    chat_id: String(m.chat?.id || ''),\n    text: text,\n    is_start: text.toLowerCase() === '/start',\n    received_at: $now.toISO()\n  }\n}];"
+      },
+      "id": "5e63b93a-c170-472e-8961-4a44be7d2fc8",
+      "name": "Extract Message",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -256,
+        224
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "start-command",
+              "leftValue": "={{ $json.is_start }}",
+              "operator": {
+                "operation": "true",
+                "type": "boolean"
+              }
+            }
+          ],
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          }
+        },
+        "options": {}
+      },
+      "id": "43cdb711-055c-4ccd-9bdf-fbdf97bcfe40",
+      "name": "Is /start?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -16,
+        224
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const rows = $input.all().filter(r => Object.keys(r.json || {}).length > 0);\nconst nextNum = rows.length + 1;\nconst p = $('Extract Message').item.json;\nreturn [{\n  json: {\n    'SESSION ID': 'No' + nextNum,\n    NAME: p.name,\n    'RECIPIENT EMAIL': '',\n    SUBJECT: '',\n    MESSAGE: '',\n    'AI EMAIL BODY': '',\n    'RECEIVED AT': p.received_at,\n    'TELEGRAM USERNAME': p.telegram_username,\n    'CHAT ID': p.chat_id,\n    STATUS: 'WAITING_EMAIL',\n    'SENT AT': ''\n  }\n}];"
+      },
+      "id": "8bfc6ac1-a6fa-4082-b35e-abf3e5905192",
+      "name": "New Session Row",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        224,
+        80
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "cachedResultName": "Untitled spreadsheet",
+          "mode": "list",
+          "value": "1BuAVUohjLYpRq-jD7tTnUfctIgrApaRutLS0K1zYWTo"
+        },
+        "sheetName": {
+          "__rl": true,
+          "cachedResultName": "Sheet1",
+          "mode": "list",
+          "value": "gid=0"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "matchingColumns": [
+            "SESSION ID"
+          ],
+          "schema": [
+            {
+              "canBeUsedToMatch": true,
+              "defaultMatch": true,
+              "display": true,
+              "displayName": "SESSION ID",
+              "id": "SESSION ID",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": true,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "NAME",
+              "id": "NAME",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": true,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "RECIPIENT EMAIL",
+              "id": "RECIPIENT EMAIL",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": true,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "SUBJECT",
+              "id": "SUBJECT",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": true,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "MESSAGE",
+              "id": "MESSAGE",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": true,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "AI EMAIL BODY",
+              "id": "AI EMAIL BODY",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": true,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "RECEIVED AT",
+              "id": "RECEIVED AT",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": true,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "TELEGRAM USERNAME",
+              "id": "TELEGRAM USERNAME",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": true,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "CHAT ID",
+              "id": "CHAT ID",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": true,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "STATUS",
+              "id": "STATUS",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": true,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "SENT AT",
+              "id": "SENT AT",
+              "required": false,
+              "type": "string"
+            }
+          ],
+          "value": {}
+        },
+        "options": {
+          "handlingExtraData": "ignoreIt"
+        }
+      },
+      "id": "4dfb682b-4834-4617-8fe4-aaaf757c2662",
+      "name": "Save New Session",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        464,
+        80
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "oiC5NLI5G0jR2ivQ",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Extract Message').item.json.chat_id }}",
+        "text": "Let's write an email. Please send the recipient's email address.\n\nExample: person@example.com",
+        "additionalFields": {}
+      },
+      "id": "300cde5f-e74b-46aa-8887-a0f383bec798",
+      "name": "Ask For Email",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        704,
+        80
+      ],
+      "webhookId": "e6b0d997-cdd5-4470-9f06-415bfb84827e",
+      "credentials": {
+        "telegramApi": {
+          "id": "g5V78Y7ZaXvJPQ1A",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "cachedResultName": "Untitled spreadsheet",
+          "mode": "list",
+          "value": "1BuAVUohjLYpRq-jD7tTnUfctIgrApaRutLS0K1zYWTo"
+        },
+        "sheetName": {
+          "__rl": true,
+          "cachedResultName": "Sheet1",
+          "mode": "list",
+          "value": "gid=0"
+        },
+        "filtersUI": {
+          "values": [
+            {
+              "lookupColumn": "CHAT ID",
+              "lookupValue": "={{ $('Extract Message').item.json.chat_id }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "2344277e-eebe-4953-b22f-4288aa0d3d1a",
+      "name": "Get Session",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        224,
+        400
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "oiC5NLI5G0jR2ivQ",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "combinator": "and",
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.STATUS || '' }}",
+                    "operator": {
+                      "operation": "equals",
+                      "type": "string"
+                    },
+                    "rightValue": "WAITING_EMAIL"
+                  }
+                ],
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 1
+                }
+              },
+              "renameOutput": true,
+              "outputKey": "WAITING_EMAIL"
+            },
+            {
+              "conditions": {
+                "combinator": "and",
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.STATUS || '' }}",
+                    "operator": {
+                      "operation": "equals",
+                      "type": "string"
+                    },
+                    "rightValue": "WAITING_SUBJECT"
+                  }
+                ],
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 1
+                }
+              },
+              "renameOutput": true,
+              "outputKey": "WAITING_SUBJECT"
+            },
+            {
+              "conditions": {
+                "combinator": "and",
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.STATUS || '' }}",
+                    "operator": {
+                      "operation": "equals",
+                      "type": "string"
+                    },
+                    "rightValue": "WAITING_MESSAGE"
+                  }
+                ],
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 1
+                }
+              },
+              "renameOutput": true,
+              "outputKey": "WAITING_MESSAGE"
+            }
+          ]
+        },
+        "options": {
+          "fallbackOutput": "extra",
+          "renameFallbackOutput": "No Session"
+        }
+      },
+      "id": "2f7fdcc2-10b8-4591-a970-034fde8ff125",
+      "name": "Route By Status",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [
+        464,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Extract Message').item.json.chat_id }}",
+        "text": "Please use /start to begin a new email.",
+        "additionalFields": {}
+      },
+      "id": "6a1e8ce7-04bd-4640-893f-74b09030c87c",
+      "name": "No Active Session",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        704,
+        704
+      ],
+      "webhookId": "1d885138-1986-4df8-a4de-d6babffa288b",
+      "credentials": {
+        "telegramApi": {
+          "id": "g5V78Y7ZaXvJPQ1A",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const session = $json;\nconst email = ($('Extract Message').item.json.text || '').trim();\nconst valid = /^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email);\nreturn [{ json: { ...session, entered_email: email, email_valid: valid } }];"
+      },
+      "id": "c808bfc9-c1df-4039-b882-ce845613bbe5",
+      "name": "Validate Email",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        704,
+        272
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "valid",
+              "leftValue": "={{ $json.email_valid }}",
+              "operator": {
+                "operation": "true",
+                "type": "boolean"
+              }
+            }
+          ],
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          }
+        },
+        "options": {}
+      },
+      "id": "ac0d34fb-4290-4c32-bf98-a37d39230538",
+      "name": "Valid Email?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        944,
+        272
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const s = $json;\nreturn [{\n  json: {\n    ...s,\n    'RECIPIENT EMAIL': s.entered_email,\n    STATUS: 'WAITING_SUBJECT'\n  }\n}];"
+      },
+      "id": "f4510ffb-ec9f-44b1-a95f-b393e2ec9741",
+      "name": "Update Recipient",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1184,
+        160
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "cachedResultName": "Untitled spreadsheet",
+          "mode": "list",
+          "value": "1BuAVUohjLYpRq-jD7tTnUfctIgrApaRutLS0K1zYWTo"
+        },
+        "sheetName": {
+          "__rl": true,
+          "cachedResultName": "Sheet1",
+          "mode": "list",
+          "value": "gid=0"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "matchingColumns": [
+            "SESSION ID"
+          ],
+          "schema": [
+            {
+              "canBeUsedToMatch": true,
+              "defaultMatch": true,
+              "display": true,
+              "displayName": "SESSION ID",
+              "id": "SESSION ID",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": true,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "NAME",
+              "id": "NAME",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": true,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "RECIPIENT EMAIL",
+              "id": "RECIPIENT EMAIL",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": true,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "SUBJECT",
+              "id": "SUBJECT",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": true,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "MESSAGE",
+              "id": "MESSAGE",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": true,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "AI EMAIL BODY",
+              "id": "AI EMAIL BODY",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": true,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "RECEIVED AT",
+              "id": "RECEIVED AT",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": true,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "TELEGRAM USERNAME",
+              "id": "TELEGRAM USERNAME",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": true,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "CHAT ID",
+              "id": "CHAT ID",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": true,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "STATUS",
+              "id": "STATUS",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": true,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "SENT AT",
+              "id": "SENT AT",
+              "required": false,
+              "type": "string"
+            }
+          ],
+          "value": {}
+        },
+        "options": {
+          "handlingExtraData": "ignoreIt"
+        }
+      },
+      "id": "73a8bed6-1136-435e-bb3f-4100d98c0c72",
+      "name": "Save Recipient",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1424,
+        160
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "oiC5NLI5G0jR2ivQ",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Extract Message').item.json.chat_id }}",
+        "text": "=Got it. Recipient: {{ $json['RECIPIENT EMAIL'] }}\n\nNow send the email subject.",
+        "additionalFields": {}
+      },
+      "id": "efc719c6-bd2e-4b85-8667-c940b4ff0d93",
+      "name": "Ask For Subject",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1664,
+        160
+      ],
+      "webhookId": "41589a7a-aa7b-4adb-b278-81d98d9ee551",
+      "credentials": {
+        "telegramApi": {
+          "id": "g5V78Y7ZaXvJPQ1A",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Extract Message').item.json.chat_id }}",
+        "text": "That doesn't look like a valid email address. Please send it again, for example: person@example.com",
+        "additionalFields": {}
+      },
+      "id": "beff676b-5fc9-432a-8f8e-39c5e37dd495",
+      "name": "Invalid Email Reply",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1504,
+        352
+      ],
+      "webhookId": "9b3f0a14-ba96-40ae-8199-ae74cb8693d0",
+      "credentials": {
+        "telegramApi": {
+          "id": "g5V78Y7ZaXvJPQ1A",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const s = $json;\nreturn [{\n  json: {\n    ...s,\n    SUBJECT: ($('Extract Message').item.json.text || '').trim(),\n    STATUS: 'WAITING_MESSAGE'\n  }\n}];"
+      },
+      "id": "f4363b2f-643e-4290-bffd-8ab8c3eb95aa",
+      "name": "Update Subject",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        704,
+        432
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "cachedResultName": "Untitled spreadsheet",
+          "mode": "list",
+          "value": "1BuAVUohjLYpRq-jD7tTnUfctIgrApaRutLS0K1zYWTo"
+        },
+        "sheetName": {
+          "__rl": true,
+          "cachedResultName": "Sheet1",
+          "mode": "list",
+          "value": "gid=0"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "matchingColumns": [
+            "SESSION ID"
+          ],
+          "schema": [
+            {
+              "canBeUsedToMatch": true,
+              "defaultMatch": true,
+              "display": true,
+              "displayName": "SESSION ID",
+              "id": "SESSION ID",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": true,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "NAME",
+              "id": "NAME",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": true,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "RECIPIENT EMAIL",
+              "id": "RECIPIENT EMAIL",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": true,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "SUBJECT",
+              "id": "SUBJECT",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": true,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "MESSAGE",
+              "id": "MESSAGE",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": true,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "AI EMAIL BODY",
+              "id": "AI EMAIL BODY",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": true,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "RECEIVED AT",
+              "id": "RECEIVED AT",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": true,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "TELEGRAM USERNAME",
+              "id": "TELEGRAM USERNAME",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": true,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "CHAT ID",
+              "id": "CHAT ID",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": true,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "STATUS",
+              "id": "STATUS",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": true,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "SENT AT",
+              "id": "SENT AT",
+              "required": false,
+              "type": "string"
+            }
+          ],
+          "value": {}
+        },
+        "options": {
+          "handlingExtraData": "ignoreIt"
+        }
+      },
+      "id": "7a3b58f9-d097-4dfd-8191-39f6a496903d",
+      "name": "Save Subject",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        944,
+        432
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "oiC5NLI5G0jR2ivQ",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Extract Message').item.json.chat_id }}",
+        "text": "=Subject saved: {{ $json.SUBJECT }}\n\nNow type the email you want to send, naturally. AI will turn it into a professional email.",
+        "additionalFields": {}
+      },
+      "id": "01060ff6-a153-4855-afe7-2214855a6c08",
+      "name": "Ask For Email Content",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1184,
+        432
+      ],
+      "webhookId": "ce58a512-a0ad-4e0d-88d5-aca001ef0455",
+      "credentials": {
+        "telegramApi": {
+          "id": "g5V78Y7ZaXvJPQ1A",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const s = $json;\nconst e = $('Extract Message').item.json;\nreturn [{\n  json: {\n    ...s,\n    MESSAGE: s.MESSAGE || s.SUBJECT || (e.text || '').trim(),\n    name: e.name,\n    telegram_username: e.telegram_username,\n    chat_id: e.chat_id\n  }\n}];"
+      },
+      "id": "defffaaf-8696-49c2-a846-6b4846cf2a8c",
+      "name": "Prepare AI Input",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        704,
+        560
+      ]
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "cachedResultName": "GPT-5 Nano",
+          "mode": "list",
+          "value": "gpt-5-nano"
+        },
+        "responses": {
+          "values": [
+            {
+              "role": "system",
+              "content": "You write complete, professional emails from just a subject line and sender name — no extra details are provided. Write a polished, ready-to-send email body that addresses the topic implied by the subject in a natural, appropriate way. Keep it concise (3-6 sentences), open with an appropriate greeting, and sign off using the sender's name. Output ONLY the email body — no subject line, no markdown, no preamble. Do not invent specific facts, dates, meetings, attachments, or commitments that were not implied by the subject."
+            },
+            {
+              "content": "=Sender name: {{ $json.NAME }}\nRecipient: {{ $json['RECIPIENT EMAIL'] }}\nSubject: {{ $json.SUBJECT }}\n\nWrite the email body now."
+            }
+          ]
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "id": "1afd6573-00e4-429f-8d32-1dcb4e95d2e4",
+      "name": "AI Compose Email",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 2.3,
+      "position": [
+        944,
+        608
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "i5NvJ8vLXlnS6JRH",
+          "name": "n8n free OpenAI API credits"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const s = $('Prepare AI Input').item.json;\nconst ai = $json;\nconst recipient = String(s['RECIPIENT EMAIL'] || '').trim();\nconst subject = String(s.SUBJECT || '').trim();\n\nfunction extractBody(ai) {\n  // OpenAI Responses API shape: { output: [ { content: [ { type: 'output_text', text: '...' } ] } ] }\n  if (Array.isArray(ai.output)) {\n    for (const item of ai.output) {\n      if (Array.isArray(item.content)) {\n        for (const c of item.content) {\n          if (c && typeof c.text === 'string' && c.text.trim()) return c.text;\n        }\n      }\n    }\n  }\n  // Fallbacks for other possible simplified shapes\n  if (typeof ai.output_text === 'string' && ai.output_text.trim()) return ai.output_text;\n  if (typeof ai.content === 'string' && ai.content.trim()) return ai.content;\n  if (typeof ai.text === 'string' && ai.text.trim()) return ai.text;\n  return '';\n}\n\nconst body = extractBody(ai).trim();\n\nif (!recipient || !/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(recipient)) {\n  throw new Error(`Recipient email is missing or invalid: ${recipient}`);\n}\nif (!subject) throw new Error('Email subject is empty.');\nif (!body) throw new Error('AI generated email body is empty.');\n\nreturn [{ json: { ...s, recipient_email: recipient, subject, email_body: body } }];"
+      },
+      "id": "8ccb969f-6470-4c9d-a48d-fd41afdf4de5",
+      "name": "Validate & Build Email",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1264,
+        608
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const s = $json;\nreturn [{\n  json: {\n    ...s,\n    STATUS: 'SENT',\n    'SENT AT': $now.toISO(),\n    'AI EMAIL BODY': s.email_body\n  }\n}];"
+      },
+      "id": "32443bc1-11f4-412e-8770-99af68d2b01f",
+      "name": "Update Sent Status",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1664,
+        560
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "cachedResultName": "Untitled spreadsheet",
+          "mode": "list",
+          "value": "1BuAVUohjLYpRq-jD7tTnUfctIgrApaRutLS0K1zYWTo"
+        },
+        "sheetName": {
+          "__rl": true,
+          "cachedResultName": "Sheet1",
+          "mode": "list",
+          "value": "gid=0"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "matchingColumns": [
+            "SESSION ID"
+          ],
+          "schema": [
+            {
+              "canBeUsedToMatch": true,
+              "defaultMatch": true,
+              "display": true,
+              "displayName": "SESSION ID",
+              "id": "SESSION ID",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": true,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "NAME",
+              "id": "NAME",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": true,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "RECIPIENT EMAIL",
+              "id": "RECIPIENT EMAIL",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": true,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "SUBJECT",
+              "id": "SUBJECT",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": true,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "MESSAGE",
+              "id": "MESSAGE",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": true,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "AI EMAIL BODY",
+              "id": "AI EMAIL BODY",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": true,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "RECEIVED AT",
+              "id": "RECEIVED AT",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": true,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "TELEGRAM USERNAME",
+              "id": "TELEGRAM USERNAME",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": true,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "CHAT ID",
+              "id": "CHAT ID",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": true,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "STATUS",
+              "id": "STATUS",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": true,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "SENT AT",
+              "id": "SENT AT",
+              "required": false,
+              "type": "string"
+            }
+          ],
+          "value": {}
+        },
+        "options": {
+          "handlingExtraData": "ignoreIt"
+        }
+      },
+      "id": "e7092c2a-e500-460b-a327-c0ceb5819cd9",
+      "name": "Save Sent Email",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1904,
+        560
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "oiC5NLI5G0jR2ivQ",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Extract Message').item.json.chat_id }}",
+        "text": "=Email sent successfully.\n\nTo: {{ $json['RECIPIENT EMAIL'] }}\nSubject: {{ $json.SUBJECT }}",
+        "additionalFields": {}
+      },
+      "id": "021ad67c-3356-4b1e-8262-a572673e0232",
+      "name": "Confirm To User",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        2144,
+        560
+      ],
+      "webhookId": "bfe3eb9b-a38a-439f-9dbf-4bb14bf9d3b2",
+      "credentials": {
+        "telegramApi": {
+          "id": "g5V78Y7ZaXvJPQ1A",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "cachedResultName": "Untitled spreadsheet",
+          "mode": "list",
+          "value": "1BuAVUohjLYpRq-jD7tTnUfctIgrApaRutLS0K1zYWTo"
+        },
+        "sheetName": {
+          "__rl": true,
+          "cachedResultName": "Sheet1",
+          "mode": "list",
+          "value": "gid=0"
+        },
+        "options": {}
+      },
+      "id": "39b2ba5f-f03b-45a5-83ac-08142e89f7bc",
+      "name": "Count Existing Sessions",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        80,
+        32
+      ],
+      "alwaysOutputData": true,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "oiC5NLI5G0jR2ivQ",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const rows = $input.all();\nif (!rows.length) return [{ json: {} }];\nreturn [{ json: rows[rows.length - 1].json }];"
+      },
+      "id": "8a5dc1ef-1877-4ca9-a0e8-7948dd27b8ab",
+      "name": "Pick Latest Session",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        352,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "fromEmail": "={{ $json.recipient_email }}",
+        "toEmail": "={{ $json.recipient_email }}",
+        "subject": "={{ $json.subject }}",
+        "emailFormat": "text",
+        "text": "={{ $json.email_body }}",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "id": "0d890dc8-5385-4d47-8b3b-c7d2739980ee",
+      "name": "Send Email",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [
+        1472,
+        608
+      ],
+      "webhookId": "4da27098-769a-4189-b51b-8dbfa07a6d1b",
+      "credentials": {
+        "smtp": {
+          "id": "2MjPlNmubVXphsSs",
+          "name": "SMTP account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Telegram Trigger": {
+      "main": [
+        [
+          {
+            "node": "Extract Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Message": {
+      "main": [
+        [
+          {
+            "node": "Is /start?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is /start?": {
+      "main": [
+        [
+          {
+            "node": "Count Existing Sessions",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Get Session",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "New Session Row": {
+      "main": [
+        [
+          {
+            "node": "Save New Session",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save New Session": {
+      "main": [
+        [
+          {
+            "node": "Ask For Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route By Status": {
+      "main": [
+        [
+          {
+            "node": "Validate Email",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Update Subject",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Prepare AI Input",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "No Active Session",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Email": {
+      "main": [
+        [
+          {
+            "node": "Valid Email?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Valid Email?": {
+      "main": [
+        [
+          {
+            "node": "Update Recipient",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Invalid Email Reply",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Recipient": {
+      "main": [
+        [
+          {
+            "node": "Save Recipient",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save Recipient": {
+      "main": [
+        [
+          {
+            "node": "Ask For Subject",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Subject": {
+      "main": [
+        [
+          {
+            "node": "Save Subject",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare AI Input": {
+      "main": [
+        [
+          {
+            "node": "AI Compose Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Compose Email": {
+      "main": [
+        [
+          {
+            "node": "Validate & Build Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Sent Status": {
+      "main": [
+        [
+          {
+            "node": "Save Sent Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save Sent Email": {
+      "main": [
+        [
+          {
+            "node": "Confirm To User",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Count Existing Sessions": {
+      "main": [
+        [
+          {
+            "node": "New Session Row",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Session": {
+      "main": [
+        [
+          {
+            "node": "Pick Latest Session",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Pick Latest Session": {
+      "main": [
+        [
+          {
+            "node": "Route By Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save Subject": {
+      "main": [
+        [
+          {
+            "node": "Prepare AI Input",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate & Build Email": {
+      "main": [
+        [
+          {
+            "node": "Send Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Email": {
+      "main": [
+        [
+          {
+            "node": "Update Sent Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": true
+  },
+  "versionId": "de50c137-80d3-4aa6-b1b0-17832610bfc8",
+  "meta": {
+    "aiBuilderAssisted": true,
+    "builderVariant": "mcp",
+    "templateCredsSetupCompleted": true,
+    "instanceId": "43f6fc32414098ba9f951966992960b5d82d078fbed4609e186bc0ee19c340c4"
+  },
+  "nodeGroups": [],
+  "id": "diJiTrTLH9MEdZW2",
+  "tags": []
+}
